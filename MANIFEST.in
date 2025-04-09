@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+include requirements.txt
+include phone_mcp/__init__.py
+include phone_mcp/__main__.py
+include phone_mcp/core.py
+recursive-include phone_mcp/tools *.py 
