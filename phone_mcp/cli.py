@@ -162,6 +162,24 @@ async def launch_specific_activity(args):
     print(result)
 
 
+async def launch_cmd(args):
+    """Launch a specific activity (alias for 'launch-activity')."""
+    result = await launch_activity(None, args.component, args.action, args.extras)
+    print(result)
+
+
+async def send_sms(args):
+    """Send a text message (alias for 'message')."""
+    result = await send_text_message(None, args.number, args.text)
+    print(result)
+
+
+async def receive_sms(args):
+    """Check recent text messages (alias for 'messages')."""
+    result = await receive_text_messages(None, args.limit)
+    print(result)
+
+
 def main():
     """Entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Phone MCP CLI - Control your Android phone from the command line")
@@ -177,14 +195,32 @@ def main():
     # Check device command
     subparsers.add_parser("check", help="Check device connection")
     
-    # Message command
+    # Message command (original)
     message_parser = subparsers.add_parser("message", help="Send a text message")
     message_parser.add_argument("number", help="Phone number to send message to")
     message_parser.add_argument("text", help="Message content")
     
-    # Check messages command
+    # Send SMS command (new, more intuitive name)
+    send_sms_parser = subparsers.add_parser("send-sms", help="Send a text message")
+    send_sms_parser.add_argument("number", help="Phone number to send message to")
+    send_sms_parser.add_argument("text", help="Message content")
+    
+    # SMS send command (alternative)
+    sms_send_parser = subparsers.add_parser("sms-send", help="Send a text message")
+    sms_send_parser.add_argument("number", help="Phone number to send message to")
+    sms_send_parser.add_argument("text", help="Message content")
+    
+    # Check messages command (original)
     check_messages_parser = subparsers.add_parser("messages", help="Check recent text messages")
     check_messages_parser.add_argument("--limit", type=int, default=5, help="Number of messages to retrieve")
+    
+    # Read SMS command (new, more intuitive name)
+    read_sms_parser = subparsers.add_parser("read-sms", help="Read recent text messages")
+    read_sms_parser.add_argument("--limit", type=int, default=5, help="Number of messages to retrieve")
+    
+    # SMS list command (alternative)
+    sms_list_parser = subparsers.add_parser("sms-list", help="List recent text messages")
+    sms_list_parser.add_argument("--limit", type=int, default=5, help="Number of messages to retrieve")
     
     # Contacts command
     contacts_parser = subparsers.add_parser("contacts", help="Retrieve contacts from the phone")
@@ -202,6 +238,12 @@ def main():
     activity_parser.add_argument("--component", required=True, help="App component in format 'package/activity' (e.g. 'com.example.app/.MainActivity')")
     activity_parser.add_argument("--action", help="Intent action to use (e.g. 'android.intent.action.VIEW')")
     activity_parser.add_argument("--extras", help="Additional intent arguments as a single string")
+    
+    # Launch command (shorter alias for launch-activity)
+    launch_parser = subparsers.add_parser("launch", help="Launch a specific activity (shorter alias)")
+    launch_parser.add_argument("--component", required=True, help="App component in format 'package/activity'")
+    launch_parser.add_argument("--action", help="Intent action to use")
+    launch_parser.add_argument("--extras", help="Additional intent arguments")
     
     # Screenshot command
     subparsers.add_parser("screenshot", help="Take a screenshot")
@@ -239,10 +281,15 @@ def main():
         "check": check_device,
         "message": message,
         "messages": check_messages,
+        "send-sms": send_sms,
+        "sms-send": send_sms,
+        "read-sms": receive_sms,
+        "sms-list": receive_sms,
         "contacts": check_contacts,
         "window": check_window,
         "shortcuts": check_shortcuts,
         "launch-activity": launch_specific_activity,
+        "launch": launch_cmd,
         "screenshot": screenshot,
         "record": record,
         "media": media_control,

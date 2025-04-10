@@ -2,6 +2,8 @@
 
 A phone control plugin for MCP that allows you to control your Android phone to connect any human.
 
+[中文文档](README_zh.md)
+
 ## Using Phone MCP in Claude and Cursor
 
 ### Installation
@@ -188,9 +190,17 @@ phone-cli call 1234567890
 phone-cli hangup
 
 # Send a text message
+phone-cli send-sms 1234567890 "Hello from CLI"
+# Alternative command
+phone-cli sms-send 1234567890 "Hello from CLI"
+# Original command
 phone-cli message 1234567890 "Hello from CLI"
 
-# Check recent text messages
+# Read/check recent text messages
+phone-cli read-sms
+# Alternative command
+phone-cli sms-list
+# Original command
 phone-cli messages
 
 # Get contacts
@@ -221,6 +231,8 @@ phone-cli window
 phone-cli shortcuts --package com.android.calculator2
 
 # Launch specific activity
+phone-cli launch --component com.android.settings/.Settings\$WifiSettingsActivity
+# Original command
 phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettingsActivity
 ```
 
