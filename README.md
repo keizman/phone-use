@@ -264,4 +264,4 @@ To contribute to this project:
 
 ## License
 
-MIT License
+Apache License, Version 2.0

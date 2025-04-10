@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="phone-mcp",
-    version="0.1.6",
+    version="0.1.7",
     packages=find_packages(),
     install_requires=[
         "mcp>=1.6.0",
@@ -17,7 +17,7 @@ setup(
     url="https://github.com/yourusername/phone-mcp",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",
