@@ -5,7 +5,7 @@ from ..core import run_command, check_device_connection
 from ..config import DEFAULT_COUNTRY_CODE
 
 
-async def call_number(mcp, phone_number: str) -> str:
+async def call_number(phone_number: str) -> str:
     """Make a phone call to the specified number.
 
     Initiates a call using Android's dialer app through ADB. The number
@@ -36,7 +36,7 @@ async def call_number(mcp, phone_number: str) -> str:
         return f"Failed to initiate call: {output}"
 
 
-async def end_call(mcp) -> str:
+async def end_call() -> str:
     """End the current phone call.
 
     Terminates any active phone call by sending the end call keycode
@@ -54,7 +54,7 @@ async def end_call(mcp) -> str:
         return f"Failed to end call: {output}"
 
 
-async def receive_incoming_call(mcp) -> str:
+async def receive_incoming_call() -> str:
     """Handle an incoming phone call.
 
     Checks for any incoming calls and provides options to answer

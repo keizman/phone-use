@@ -3,7 +3,7 @@
 from ..core import run_command
 
 
-async def open_app(mcp, app_name: str) -> str:
+async def open_app(app_name: str) -> str:
     """Open an application on the phone.
 
     Launches the specified application by its package name or attempts to
@@ -58,7 +58,7 @@ async def open_app(mcp, app_name: str) -> str:
         return f"Failed to open app '{app_name}'. Please check if the app is installed."
 
 
-async def set_alarm(mcp, hour: int, minute: int, label: str = "Alarm") -> str:
+async def set_alarm(hour: int, minute: int, label: str = "Alarm") -> str:
     """Set an alarm on the phone.
 
     Creates a new alarm with the specified time and label using the default
@@ -93,4 +93,4 @@ async def set_alarm(mcp, hour: int, minute: int, label: str = "Alarm") -> str:
     if success:
         return f"Alarm set for {time_str} with label '{label}'"
     else:
-        return f"Failed to set alarm: {output}" 
+        return f"Failed to set alarm: {output}"

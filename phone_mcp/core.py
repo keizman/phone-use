@@ -48,14 +48,11 @@ async def run_command(cmd: str, timeout: int = None) -> tuple[bool, str]:
         return False, str(e)
 
 
-async def check_device_connection(mcp=None) -> str:
+async def check_device_connection() -> str:
     """Check if an Android device is connected via ADB.
 
     Verifies that an Android device is properly connected and recognized
     by ADB, which is required for all other functions to work.
-
-    Args:
-        mcp: MCP instance (optional, can be None when called from CLI)
 
     Returns:
         str: Status message indicating whether a device is connected and
@@ -66,7 +63,17 @@ async def check_device_connection(mcp=None) -> str:
         success, output = await run_command("adb devices")
 
         if success:
-            if "device" in output and not output.strip().endswith("devices"):
+            # 正确检测设备连接的逻辑
+            lines = output.strip().split('\n')
+            
+            # 检查是否有除了"List of devices attached"之外的行，且有包含"device"状态的设备
+            device_connected = False
+            for line in lines[1:]:  # 跳过第一行"List of devices attached"
+                if line.strip() and '\tdevice' in line:
+                    device_connected = True
+                    break
+            
+            if device_connected:
                 return "Device is connected and ready."
             else:
                 if AUTO_RETRY_CONNECTION and retry_count < MAX_RETRY_COUNT:

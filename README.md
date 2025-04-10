@@ -23,6 +23,14 @@ Configure in `~/.cursor/mcp.json`:
 ```
 
 ### Using in Claude
+```json
+"phone-mcp": {
+    "command": "uvx",
+    "args": [
+        "phone-mcp"
+    ]
+}
+```
 Claude can directly call the following phone control functions:
 
 - **Call Functions**: Make calls, end calls, receive incoming calls
@@ -31,6 +39,7 @@ Claude can directly call the following phone control functions:
 - **Media Functions**: Take screenshots, record screen, control media playback
 - **App Functions**: Open applications, set alarms
 - **System Functions**: Get window info, app shortcuts, launch specific activities
+- **Map Functions**: Search for POI information (including phone numbers) by location (requires AMap API key)
 
 ### Example Commands
 Use directly in Claude conversations:
@@ -42,6 +51,7 @@ Use directly in Claude conversations:
 - Get app shortcuts: `mcp_phone_mcp_get_app_shortcuts`
 - Get window info: `mcp_phone_mcp_get_current_window`
 - Launch specific activity: `mcp_phone_mcp_launch_activity`
+- Search POIs by location: `mcp_amap_maps_maps_get_poi_info_by_location`
 
 No additional configuration is needed. As long as ADB is properly installed and configured, Claude can directly control your Android device.
 
@@ -132,6 +142,17 @@ By default, the country code `+86` (China) is used when making calls or sending 
 DEFAULT_COUNTRY_CODE = "+1"  # Change to your country code (e.g., "+1" for US)
 ```
 
+### Map API Key
+
+To use location-based POI search features, you need to set an AMap API key:
+
+```bash
+# Set environment variable
+export AMAP_MAPS_API_KEY="your_api_key_here"
+```
+
+The map features will only be enabled if this environment variable is set.
+
 ### Storage Paths
 
 Screenshot and recording paths can be customized:
@@ -191,17 +212,9 @@ phone-cli hangup
 
 # Send a text message
 phone-cli send-sms 1234567890 "Hello from CLI"
-# Alternative command
-phone-cli sms-send 1234567890 "Hello from CLI"
-# Original command
-phone-cli message 1234567890 "Hello from CLI"
 
 # Read/check recent text messages
-phone-cli read-sms
-# Alternative command
-phone-cli sms-list
-# Original command
-phone-cli messages
+phone-cli messages --limit 10
 
 # Get contacts
 phone-cli contacts
@@ -234,6 +247,12 @@ phone-cli shortcuts --package com.android.calculator2
 phone-cli launch --component com.android.settings/.Settings\$WifiSettingsActivity
 # Original command
 phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettingsActivity
+
+# Map API commands (only available if AMAP_MAPS_API_KEY is set)
+# Get POI information by location
+phone-cli get-poi 116.480053,39.987005 --keywords 餐厅 --radius 1000
+# Alias for get-poi command
+phone-cli map-around 116.480053,39.987005 --keywords 餐厅 --radius 1000
 ```
 
 ## Available Tools
@@ -264,6 +283,10 @@ phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettin
 - `get_current_window`: Get information about currently active window
 - `get_app_shortcuts`: Get app shortcuts for specific or all packages
 - `launch_activity`: Launch specific app activities with custom intents
+
+### Map Functions
+- `around_search`: Search for POIs around a location
+- `get_poi_info_by_location`: Search for POI information including phone numbers by location (alias available as `map-around` in CLI)
 
 ## Development
 

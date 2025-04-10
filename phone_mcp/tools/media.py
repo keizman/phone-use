@@ -8,7 +8,7 @@ from ..core import run_command
 from ..config import SCREENSHOT_PATH, RECORDING_PATH, COMMAND_TIMEOUT
 
 
-async def take_screenshot(mcp) -> str:
+async def take_screenshot() -> str:
     """Take a screenshot of the phone's current screen.
 
     Captures the current screen content of the device and automatically saves to
@@ -21,13 +21,13 @@ async def take_screenshot(mcp) -> str:
     """
     # Check for connected device
     from ..core import check_device_connection
-    connection_status = await check_device_connection(mcp)
+    connection_status = await check_device_connection()
     if "ready" not in connection_status:
         return connection_status
-        
+
     # Generate a timestamp for the filename
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    
+
     # Define paths - use multiple potential storage locations for reliability
     filename = f"screenshot_{timestamp}.png"
     primary_path = f"{SCREENSHOT_PATH}{filename}"
@@ -37,19 +37,19 @@ async def take_screenshot(mcp) -> str:
         f"/sdcard/Download/{filename}",
         f"/data/local/tmp/{filename}"
     ]
-    
+
     # Ensure the directory exists
     main_dir = SCREENSHOT_PATH
     await run_command(f"adb shell mkdir -p {main_dir}")
-    
+
     # First attempt: take screenshot to configured path
     cmd = f"adb shell screencap -p {primary_path}"
     success, output = await run_command(cmd)
-    
+
     # Check if the file exists
     check_cmd = f"adb shell ls {primary_path}"
     file_exists, _ = await run_command(check_cmd)
-    
+
     # If primary path failed, try fallback locations
     storage_path = primary_path
     if not success or not file_exists:
@@ -57,24 +57,24 @@ async def take_screenshot(mcp) -> str:
             # Ensure directory exists
             dir_path = os.path.dirname(path)
             await run_command(f"adb shell mkdir -p {dir_path}")
-            
+
             # Take screenshot
             cmd = f"adb shell screencap -p {path}"
             success, output = await run_command(cmd)
-            
+
             # Verify file exists
             check_cmd = f"adb shell ls {path}"
             file_exists, _ = await run_command(check_cmd)
-            
+
             if success and file_exists:
                 storage_path = path
                 break
-    
+
     if success and file_exists:
         # Try to pull the file to the local machine if possible
         pull_cmd = f"adb pull {storage_path} ./{filename}"
         pull_success, pull_output = await run_command(pull_cmd)
-        
+
         if pull_success:
             return f"Screenshot taken and saved to device ({storage_path}) and pulled to current directory (./{filename})"
         else:
@@ -83,14 +83,14 @@ async def take_screenshot(mcp) -> str:
         # Direct capture to stdout as a last resort
         cmd = "adb shell screencap -p | sed 's/\r$//' > ./screenshot_direct.png"
         direct_success, direct_output = await run_command(cmd)
-        
+
         if direct_success:
             return "Screenshot taken and saved to ./screenshot_direct.png"
         else:
             return f"Failed to take screenshot: {output}. Make sure the device is properly connected."
 
 
-async def start_screen_recording(mcp, duration_seconds: int = 30) -> str:
+async def start_screen_recording(duration_seconds: int = 30) -> str:
     """Start recording the phone's screen.
 
     Records the screen activity for the specified duration and saves
@@ -107,17 +107,17 @@ async def start_screen_recording(mcp, duration_seconds: int = 30) -> str:
     """
     # Check for connected device
     from ..core import check_device_connection
-    connection_status = await check_device_connection(mcp)
+    connection_status = await check_device_connection()
     if "ready" not in connection_status:
         return connection_status
-        
+
     # Limit duration to prevent excessive recordings
     if duration_seconds > 180:
         duration_seconds = 180
 
     # Generate filename with timestamp
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    
+
     # Define paths - use multiple potential storage locations for reliability
     filename = f"recording_{timestamp}.mp4"
     primary_path = f"{RECORDING_PATH}{filename}"
@@ -127,14 +127,14 @@ async def start_screen_recording(mcp, duration_seconds: int = 30) -> str:
         f"/sdcard/Videos/{filename}",
         f"/sdcard/Download/{filename}"
     ]
-    
+
     # Ensure the directory exists
     main_dir = RECORDING_PATH
     await run_command(f"adb shell mkdir -p {main_dir}")
-    
+
     # First attempt the primary path
     storage_path = primary_path
-    
+
     # Check if the main directory is writable
     mkdir_success, _ = await run_command(f"adb shell mkdir -p {main_dir}")
     if not mkdir_success:
@@ -145,7 +145,7 @@ async def start_screen_recording(mcp, duration_seconds: int = 30) -> str:
             if mkdir_success:
                 storage_path = path
                 break
-    
+
     # Start screen recording with the specified duration
     cmd = f"adb shell screenrecord --time-limit {duration_seconds} {storage_path}"
 
@@ -160,14 +160,14 @@ async def start_screen_recording(mcp, duration_seconds: int = 30) -> str:
         return (f"Started screen recording. Recording for {duration_seconds} seconds "
                 f"and will be saved to {storage_path}. "
                 f"Will attempt to download video when complete.")
-                
+
         # Note: We can't pull the file until recording is finished
-        
+
     except Exception as e:
         return f"Failed to start screen recording: {str(e)}"
 
 
-async def play_media(mcp) -> str:
+async def play_media() -> str:
     """Play or pause media on the phone.
 
     Sends the media play/pause keycode to control any currently active media.
@@ -183,4 +183,4 @@ async def play_media(mcp) -> str:
     if success:
         return "Media play/pause command sent successfully"
     else:
-        return f"Failed to control media: {output}" 
+        return f"Failed to control media: {output}"

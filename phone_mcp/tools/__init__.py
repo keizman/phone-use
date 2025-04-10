@@ -7,6 +7,10 @@ from .apps import open_app, set_alarm
 from .contacts import get_contacts
 from .system import get_current_window, get_app_shortcuts, launch_activity
 
+# Import map-related functionality, including environment variable check
+from .maps import get_poi_info_by_location, HAS_VALID_API_KEY
+
+# Basic tools list
 __all__ = [
     "call_number", 
     "end_call", 
@@ -22,5 +26,9 @@ __all__ = [
     "get_contacts",
     "get_current_window",
     "get_app_shortcuts",
-    "launch_activity"
-] 
+    "launch_activity",
+]
+
+# Only add map functionality if there is a valid API key
+if HAS_VALID_API_KEY:
+    __all__.append("get_poi_info_by_location") 

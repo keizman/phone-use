@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="phone-mcp",
-    version="0.1.7",
+    version="0.1.9",
     packages=find_packages(),
     install_requires=[
         "mcp>=1.6.0",
@@ -14,7 +14,7 @@ setup(
     description="A phone control plugin for MCP that allows you to control your Android phone through ADB commands to connect any human",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/phone-mcp",
+    url="https://github.com/hao-cyber/phone-mcp",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",

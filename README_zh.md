@@ -29,6 +29,7 @@ Claude 可以直接调用以下手机控制功能：
 - **媒体功能**：截屏、录屏、控制媒体播放
 - **应用功能**：打开应用程序、设置闹钟
 - **系统功能**：获取窗口信息、应用快捷方式、启动特定活动
+- **地图功能**：搜索指定位置周边的POI信息
 
 ### 示例命令
 在 Claude 对话中直接使用：
@@ -40,6 +41,7 @@ Claude 可以直接调用以下手机控制功能：
 - 获取应用快捷方式：`mcp_phone_mcp_get_app_shortcuts`
 - 获取窗口信息：`mcp_phone_mcp_get_current_window`
 - 启动特定活动：`mcp_phone_mcp_launch_activity`
+- 搜索POI信息：`mcp_amap_maps_maps_get_poi_info_by_location`
 
 无需额外配置。只要正确安装和配置了 ADB，Claude 就可以直接控制您的 Android 设备。
 
@@ -182,24 +184,16 @@ MAX_RETRY_COUNT = 3
 phone-cli check
 
 # 拨打电话
-phone-cli call 1234567890
+phone-cli call 10086
 
 # 结束当前通话
 phone-cli hangup
 
 # 发送短信
-phone-cli send-sms 1234567890 "来自命令行的问候"
-# 替代命令
-phone-cli sms-send 1234567890 "来自命令行的问候"
-# 原始命令
-phone-cli message 1234567890 "来自命令行的问候"
+phone-cli send-sms 10086 "来自命令行的问候"
 
 # 查看/读取最近短信
-phone-cli read-sms
-# 替代命令
-phone-cli sms-list
-# 原始命令
-phone-cli messages
+phone-cli messages --limit 10
 
 # 获取联系人
 phone-cli contacts
@@ -232,6 +226,12 @@ phone-cli shortcuts --package com.android.calculator2
 phone-cli launch --component com.android.settings/.Settings\$WifiSettingsActivity
 # 原始命令
 phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettingsActivity
+
+# 地图API命令
+# 搜索POI信息
+phone-cli map-around 116.480053,39.987005 --keywords 餐厅 --radius 1000
+# 获取POI信息（与map-around命令功能相同）
+phone-cli get-poi 116.480053,39.987005 --keywords 餐厅 --radius 1000
 ```
 
 ## 可用工具
@@ -263,6 +263,10 @@ phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettin
 - `get_app_shortcuts`：获取特定或所有应用的快捷方式
 - `launch_activity`：使用自定义意图启动特定应用活动
 
+### 地图功能
+- `around_search`：搜索指定位置周边的POI信息
+- `get_poi_info_by_location`：获取POI详细信息，包括电话号码（在CLI中可通过`map-around`或`get-poi`命令使用）
+
 ## 开发
 
 要为此项目做贡献：
@@ -274,4 +278,4 @@ phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettin
 
 ## 许可证
 
-Apache License, Version 2.0 
+Apache License, Version 2.0
