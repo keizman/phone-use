@@ -12,6 +12,8 @@ from .tools.call import call_number, end_call, receive_incoming_call
 from .tools.messaging import send_text_message, receive_text_messages
 from .tools.media import take_screenshot, start_screen_recording, play_media
 from .tools.apps import open_app, set_alarm
+from .tools.contacts import get_contacts
+from .tools.system import get_current_window, get_app_shortcuts, launch_activity
 
 
 async def call(args):
@@ -81,6 +83,85 @@ async def receive_call(args):
     print(result)
 
 
+async def check_contacts(args):
+    """Retrieve contacts from the phone."""
+    result = await get_contacts(None, args.limit)
+    
+    # Check if the result is a JSON string
+    try:
+        import json
+        contacts = json.loads(result)
+        if isinstance(contacts, list):
+            if len(contacts) == 0:
+                print("No contacts found.")
+            else:
+                print(f"Found {len(contacts)} contact(s):")
+                for i, contact in enumerate(contacts, 1):
+                    name = contact.get('name', contact.get('display_name', 'Unknown'))
+                    number = contact.get('number', 'Unknown')
+                    print(f"{i}. {name}: {number}")
+        else:
+            print(result)
+    except (json.JSONDecodeError, TypeError):
+        # If not JSON, just print the raw result
+        print(result)
+
+
+async def check_window(args):
+    """Get current window information."""
+    result = await get_current_window(None)
+    
+    try:
+        import json
+        window_info = json.loads(result)
+        print("Current Window Information:")
+        for key, value in window_info.items():
+            print(f"  {key.replace('_', ' ').title()}: {value}")
+    except (json.JSONDecodeError, TypeError):
+        print(result)
+
+
+async def check_shortcuts(args):
+    """Get app shortcuts."""
+    result = await get_app_shortcuts(None, args.package)
+    
+    try:
+        import json
+        shortcuts_info = json.loads(result)
+        
+        print("App Shortcuts Information:")
+        
+        if "packages_with_shortcuts" in shortcuts_info:
+            packages = shortcuts_info.pop("packages_with_shortcuts")
+            print(f"\nPackages with shortcuts ({len(packages)}):")
+            for pkg in packages:
+                print(f"  - {pkg}")
+        
+        for package, info in shortcuts_info.items():
+            print(f"\nPackage: {package}")
+            
+            if "shortcuts" in info and isinstance(info["shortcuts"], list):
+                print(f"  Shortcuts ({len(info['shortcuts'])}):")
+                for shortcut in info["shortcuts"]:
+                    print(f"    • {shortcut.get('id', 'Unknown ID')}")
+                    if "title" in shortcut:
+                        print(f"      Title: {shortcut['title']}")
+                    if "short_label" in shortcut:
+                        print(f"      Label: {shortcut['short_label']}")
+            elif "shortcuts" in info and isinstance(info["shortcuts"], str):
+                print(f"  Raw Shortcut Data: {info['shortcuts'][:100]}...")
+            else:
+                print("  No specific shortcuts found")
+    except (json.JSONDecodeError, TypeError):
+        print(result)
+
+
+async def launch_specific_activity(args):
+    """Launch a specific activity with custom action and component."""
+    result = await launch_activity(None, args.component, args.action, args.extras)
+    print(result)
+
+
 def main():
     """Entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Phone MCP CLI - Control your Android phone from the command line")
@@ -104,6 +185,23 @@ def main():
     # Check messages command
     check_messages_parser = subparsers.add_parser("messages", help="Check recent text messages")
     check_messages_parser.add_argument("--limit", type=int, default=5, help="Number of messages to retrieve")
+    
+    # Contacts command
+    contacts_parser = subparsers.add_parser("contacts", help="Retrieve contacts from the phone")
+    contacts_parser.add_argument("--limit", type=int, default=20, help="Number of contacts to retrieve")
+    
+    # Window information command
+    subparsers.add_parser("window", help="Get current window information")
+    
+    # App shortcuts command
+    shortcuts_parser = subparsers.add_parser("shortcuts", help="Get app shortcuts")
+    shortcuts_parser.add_argument("--package", help="Specific package to get shortcuts for")
+    
+    # Launch specific activity command
+    activity_parser = subparsers.add_parser("launch-activity", help="Launch a specific activity with custom action")
+    activity_parser.add_argument("--component", required=True, help="App component in format 'package/activity' (e.g. 'com.example.app/.MainActivity')")
+    activity_parser.add_argument("--action", help="Intent action to use (e.g. 'android.intent.action.VIEW')")
+    activity_parser.add_argument("--extras", help="Additional intent arguments as a single string")
     
     # Screenshot command
     subparsers.add_parser("screenshot", help="Take a screenshot")
@@ -141,6 +239,10 @@ def main():
         "check": check_device,
         "message": message,
         "messages": check_messages,
+        "contacts": check_contacts,
+        "window": check_window,
+        "shortcuts": check_shortcuts,
+        "launch-activity": launch_specific_activity,
         "screenshot": screenshot,
         "record": record,
         "media": media_control,

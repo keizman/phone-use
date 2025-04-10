@@ -1,6 +1,47 @@
 # Phone MCP Plugin
 
-A phone control plugin for MCP that allows you to control your Android phone through ADB commands to connect any human.
+A phone control plugin for MCP that allows you to control your Android phone to connect any human.
+
+## Using Phone MCP in Claude and Cursor
+
+### Installation
+```bash
+uvx phone-mcp
+```
+
+### Cursor Configuration
+Configure in `~/.cursor/mcp.json`:
+```json
+"phone-mcp": {
+    "command": "uvx",
+    "args": [
+        "phone-mcp"
+    ]
+}
+```
+
+### Using in Claude
+Claude can directly call the following phone control functions:
+
+- **Call Functions**: Make calls, end calls, receive incoming calls
+- **Messaging Functions**: Send SMS, receive recent messages
+- **Contact Functions**: Access phone contacts
+- **Media Functions**: Take screenshots, record screen, control media playback
+- **App Functions**: Open applications, set alarms
+- **System Functions**: Get window info, app shortcuts, launch specific activities
+
+### Example Commands
+Use directly in Claude conversations:
+- Check device connection: `mcp_phone_mcp_check_device_connection`
+- Make a phone call: `mcp_phone_mcp_call_number`
+- Send a text message: `mcp_phone_mcp_send_text_message`
+- Get contacts: `mcp_phone_mcp_get_contacts`
+- Take a screenshot: `mcp_phone_mcp_take_screenshot`
+- Get app shortcuts: `mcp_phone_mcp_get_app_shortcuts`
+- Get window info: `mcp_phone_mcp_get_current_window`
+- Launch specific activity: `mcp_phone_mcp_launch_activity`
+
+No additional configuration is needed. As long as ADB is properly installed and configured, Claude can directly control your Android device.
 
 ## Installation
 
@@ -124,6 +165,7 @@ MAX_RETRY_COUNT = 3
 - Control media playback
 - Open apps and set alarms
 - Check device connection
+- Access and manage contacts
 
 ## Usage
 
@@ -151,6 +193,9 @@ phone-cli message 1234567890 "Hello from CLI"
 # Check recent text messages
 phone-cli messages
 
+# Get contacts
+phone-cli contacts
+
 # Take a screenshot
 phone-cli screenshot
 
@@ -168,6 +213,15 @@ phone-cli alarm 7 30 --label "Wake up"
 
 # Check for incoming calls
 phone-cli incoming
+
+# Get window information
+phone-cli window
+
+# Get app shortcuts
+phone-cli shortcuts --package com.android.calculator2
+
+# Launch specific activity
+phone-cli launch-activity --component com.android.settings/.Settings\$WifiSettingsActivity
 ```
 
 ## Available Tools
@@ -182,6 +236,9 @@ phone-cli incoming
 - `send_text_message`: Send an SMS
 - `receive_text_messages`: Get recent messages
 
+### Contact Functions
+- `get_contacts`: Retrieve contacts from the phone
+
 ### Media Functions
 - `take_screenshot`: Capture screen
 - `start_screen_recording`: Record screen
@@ -190,6 +247,11 @@ phone-cli incoming
 ### App Functions
 - `open_app`: Launch applications
 - `set_alarm`: Create an alarm
+
+### System Functions
+- `get_current_window`: Get information about currently active window
+- `get_app_shortcuts`: Get app shortcuts for specific or all packages
+- `launch_activity`: Launch specific app activities with custom intents
 
 ## Development
 
@@ -202,4 +264,4 @@ To contribute to this project:
 
 ## License
 
-MIT License 
+MIT License

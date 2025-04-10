@@ -2,6 +2,7 @@
 
 import asyncio
 import subprocess
+import json
 from ..core import run_command
 from ..config import DEFAULT_COUNTRY_CODE
 
@@ -9,17 +10,20 @@ from ..config import DEFAULT_COUNTRY_CODE
 async def send_text_message(mcp, phone_number: str, message: str) -> str:
     """Send a text message to the specified number.
 
-    Opens the messaging app with the specified recipient and message,
-    then simulates keypresses to send the message.
+    Uses the phone's messaging app with UI automation to send SMS.
+    Process: Opens messaging app, fills recipient and content, automatically clicks send button, then auto-exits app.
 
     Args:
-        phone_number (str): The recipient's phone number. Country code
-                          will be automatically added if not provided.
-        message (str): The text content to send in the message.
+        phone_number (str): Recipient's phone number. Country code will be automatically added if not included.
+                          Example: "13812345678" or "+8613812345678"
+        message (str): SMS content. Supports any text, including emojis.
+                     Example: "Hello, this is a test message"
 
     Returns:
-        str: Success message if the text was sent, or an error message
-             describing what part of the process failed.
+        str: String description of the operation result:
+             - Success: "Text message sent to {phone_number}"
+             - Failure: Message containing error reason, like "Failed to open messaging app: {error}"
+                       or "Failed to navigate to send button: {error}"
     """
     # Add country code if not already included
     if not phone_number.startswith("+"):
@@ -32,8 +36,8 @@ async def send_text_message(mcp, phone_number: str, message: str) -> str:
     # Escape single quotes in the message
     escaped_message = message.replace("'", "\\'")
 
-    # Open messaging app with the number and message
-    cmd = f"adb shell am start -a android.intent.action.SENDTO -d sms:{phone_number} --es sms_body '{escaped_message}'"
+    # Open messaging app with the number and message, and auto-exit after sending
+    cmd = f"adb shell am start -a android.intent.action.SENDTO -d sms:{phone_number} --es sms_body '{escaped_message}' --ez exit_on_sent true"
     success, output = await run_command(cmd)
 
     if not success:
@@ -51,47 +55,100 @@ async def send_text_message(mcp, phone_number: str, message: str) -> str:
     success2, output2 = await run_command("adb shell input keyevent 66")
     if not success2:
         return f"Failed to press send button: {output2}"
+    
+    # Wait a moment for the message to be sent
+    await asyncio.sleep(1)
+    
+    # In case auto-exit doesn't work, press BACK once
+    await run_command("adb shell input keyevent 4")
 
     return f"Text message sent to {phone_number}"
 
 
 async def receive_text_messages(mcp, limit: int = 5) -> str:
-    """Check for recent text messages on the phone.
+    """Get recent text messages from the phone.
 
     Retrieves recent SMS messages from the device's SMS database
-    using ADB and content provider queries.
+    using ADB and content provider queries to get structured message data.
 
     Args:
         limit (int): Maximum number of messages to retrieve (default: 5)
+                    Example: 10 will return the 10 most recent messages
 
     Returns:
-        str: JSON string containing recent messages with sender, content,
-             and timestamp, or an error message if retrieval failed.
+        str: JSON string containing messages or an error message:
+             - Success: Formatted JSON string with list of messages, each with fields:
+                       - address: Sender's number
+                       - body: Message content
+                       - date: Timestamp
+                       - formatted_date: Human-readable date time (like "2023-07-25 14:30:22")
+                       - read: Whether message has been read
+                       - type: Message type
+                       Example: [{"address": "+8613812345678", "body": "Hello", ...}]
+             - Failure: Text message describing the error, like "No recent text messages found..."
     """
-    # Use the exact command format as specified
-    cmd = 'adb shell "content query --uri content://sms/ --projection \'address,date,body\'"'
+    # Check for connected device
+    from ..core import check_device_connection
+    connection_status = await check_device_connection(mcp)
+    if "ready" not in connection_status:
+        return connection_status
+        
+    # Method 1: Content provider query - more reliable
+    cmd = f'adb shell content query --uri content://sms/inbox --sort "date DESC" --limit {limit}'
+    success, output = await run_command(cmd)
+    
+    if not success or "Error" in output or "Permission" in output:
+        # Try alternative command format if first one fails
+        cmd = f'adb shell "content query --uri content://sms/ --projection address,date,body,read,type --sort \'date DESC\' --limit {limit}"'
+        success, output = await run_command(cmd)
     
     try:
-        process = await asyncio.create_subprocess_shell(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        stdout, stderr = await process.communicate()
-        
-        stdout_text = stdout.decode('utf-8') if stdout else ""
-        
-        if process.returncode == 0 and stdout_text.strip():
-            # Process the results - limit to requested number of entries
-            rows = stdout_text.strip().split("Row: ")
+        if success and output.strip():
+            # Process the results into a structured JSON format
+            rows = output.strip().split("Row: ")
             rows = [r for r in rows if r.strip()]
             
-            if len(rows) > limit:
-                rows = rows[:limit]
+            messages = []
+            for row in rows:
+                message = {}
+                parts = row.split(", ")
                 
-            formatted_output = "Row: " + "Row: ".join(rows)
-            return f"Recent text messages:\n\n{formatted_output}"
+                for part in parts:
+                    if "=" in part:
+                        key, value = part.split("=", 1)
+                        message[key.strip()] = value.strip()
+                
+                # Format the date if present
+                if "date" in message:
+                    try:
+                        # Convert timestamp to more readable format
+                        timestamp = int(message["date"])
+                        import datetime
+                        date_str = datetime.datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
+                        message["formatted_date"] = date_str
+                    except:
+                        # Keep original if conversion fails
+                        pass
+                        
+                messages.append(message)
+                
+            # Return as JSON
+            return json.dumps(messages, indent=2)
         else:
-            return "No recent text messages found."
+            # Try dumpsys as a fallback
+            cmd = 'adb shell dumpsys telephony.registry'
+            success, output = await run_command(cmd)
+            
+            if success and "mNewSms" in output:
+                # Try to extract some SMS information from dumpsys output
+                import re
+                sms_pattern = re.compile(r'mNewSms=.*?from=([^,]+),.*?text=(.*?)(?:,|$)')
+                matches = sms_pattern.findall(output)
+                
+                if matches:
+                    messages = [{"address": sender, "body": text} for sender, text in matches[:limit]]
+                    return json.dumps(messages, indent=2)
+            
+            return "No recent text messages found or unable to access SMS database."
     except Exception as e:
         return f"Failed to retrieve text messages: {str(e)}" 
