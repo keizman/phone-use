@@ -21,6 +21,7 @@ async def take_screenshot() -> str:
     """
     # Check for connected device
     from ..core import check_device_connection
+
     connection_status = await check_device_connection()
     if "ready" not in connection_status:
         return connection_status
@@ -35,7 +36,7 @@ async def take_screenshot() -> str:
         f"/sdcard/DCIM/{filename}",
         f"/sdcard/Pictures/{filename}",
         f"/sdcard/Download/{filename}",
-        f"/data/local/tmp/{filename}"
+        f"/data/local/tmp/{filename}",
     ]
 
     # Ensure the directory exists
@@ -80,14 +81,45 @@ async def take_screenshot() -> str:
         else:
             return f"Screenshot taken and saved to device at {storage_path}"
     else:
-        # Direct capture to stdout as a last resort
-        cmd = "adb shell screencap -p | sed 's/\r$//' > ./screenshot_direct.png"
+        # Direct capture to stdout as a last resort - platform independent approach
+        import tempfile
+        import os
+
+        # Create a temporary file to store the output
+        temp_file = os.path.join(tempfile.gettempdir(), "screenshot_temp.png")
+        screenshot_file = "./screenshot_direct.png"
+
+        # First capture to temp file
+        cmd = f"adb shell screencap -p > {temp_file}"
         direct_success, direct_output = await run_command(cmd)
 
         if direct_success:
-            return "Screenshot taken and saved to ./screenshot_direct.png"
+            try:
+                # Open and process the file to handle line ending differences (instead of using sed)
+                with open(temp_file, "rb") as f_in:
+                    data = f_in.read()
+
+                # Replace \r\n with \n (Windows-safe approach)
+                if b"\r\n" in data:
+                    data = data.replace(b"\r\n", b"\n")
+                elif b"\r" in data:
+                    data = data.replace(b"\r", b"")
+
+                # Write the processed data
+                with open(screenshot_file, "wb") as f_out:
+                    f_out.write(data)
+
+                # Remove temp file
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+
+                return "Screenshot taken and saved to ./screenshot_direct.png"
+            except Exception as e:
+                return f"Screenshot captured but failed to process: {str(e)}"
         else:
-            return f"Failed to take screenshot: {output}. Make sure the device is properly connected."
+            return f"Failed to take screenshot: {direct_output}. Make sure the device is properly connected."
 
 
 async def start_screen_recording(duration_seconds: int = 30) -> str:
@@ -107,6 +139,7 @@ async def start_screen_recording(duration_seconds: int = 30) -> str:
     """
     # Check for connected device
     from ..core import check_device_connection
+
     connection_status = await check_device_connection()
     if "ready" not in connection_status:
         return connection_status
@@ -125,7 +158,7 @@ async def start_screen_recording(duration_seconds: int = 30) -> str:
         f"/sdcard/DCIM/Camera/{filename}",
         f"/sdcard/Movies/{filename}",
         f"/sdcard/Videos/{filename}",
-        f"/sdcard/Download/{filename}"
+        f"/sdcard/Download/{filename}",
     ]
 
     # Ensure the directory exists
@@ -152,14 +185,14 @@ async def start_screen_recording(duration_seconds: int = 30) -> str:
     try:
         # Run the command in a separate process so we can return immediately
         process = await asyncio.create_subprocess_shell(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
 
-        return (f"Started screen recording. Recording for {duration_seconds} seconds "
-                f"and will be saved to {storage_path}. "
-                f"Will attempt to download video when complete.")
+        return (
+            f"Started screen recording. Recording for {duration_seconds} seconds "
+            f"and will be saved to {storage_path}. "
+            f"Will attempt to download video when complete."
+        )
 
         # Note: We can't pull the file until recording is finished
 

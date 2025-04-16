@@ -12,7 +12,7 @@ async def call_number(phone_number: str) -> str:
     will be dialed immediately without requiring user confirmation.
 
     Args:
-        phone_number (str): The phone number to call. Country code 
+        phone_number (str): The phone number to call. Country code
                           will be automatically added if not provided.
 
     Returns:
@@ -27,7 +27,7 @@ async def call_number(phone_number: str) -> str:
     if not phone_number[1:].isdigit():
         return "Invalid phone number format. Please use numeric digits only."
 
-    cmd = f'adb shell am start -a android.intent.action.CALL -d tel:{phone_number}'
+    cmd = f"adb shell am start -a android.intent.action.CALL -d tel:{phone_number}"
     success, output = await run_command(cmd)
 
     if success:
@@ -67,33 +67,36 @@ async def receive_incoming_call() -> str:
              number, or a message indicating no incoming calls.
     """
     # First check if there's an incoming call by examining the phone state
-    cmd = "adb shell dumpsys telephony.registry | grep mCallState"
+    cmd = "adb shell dumpsys telephony.registry"
     success, output = await run_command(cmd)
 
     if not success:
         return f"Failed to check call state: {output}"
 
-    # Parse the call state (0=idle, 1=ringing, 2=offhook/active)
+    # Use Python to find the call state line
     call_state = None
-    if "mCallState" in output:
-        match = re.search(r'mCallState=(\d)', output)
-        if match:
-            call_state = int(match.group(1))
+    for line in output.splitlines():
+        if "mCallState" in line:
+            match = re.search(r"mCallState=(\d)", line)
+            if match:
+                call_state = int(match.group(1))
+                break
 
     if call_state != 1:  # Not ringing
         return "No incoming call detected."
 
-    # Get the caller number
-    cmd = "adb shell dumpsys telephony.registry | grep mCallIncomingNumber"
-    success, output = await run_command(cmd)
-
+    # Get the caller number - using Python to process output
     caller_number = "Unknown"
-    if success and "mCallIncomingNumber" in output:
-        match = re.search(r'mCallIncomingNumber=([^\s,]+)', output)
-        if match:
-            caller_number = match.group(1)
+    for line in output.splitlines():
+        if "mCallIncomingNumber" in line:
+            match = re.search(r"mCallIncomingNumber=([^\s,]+)", line)
+            if match:
+                caller_number = match.group(1)
+                break
 
     # Provide options for the call
-    return f"Incoming call from: {caller_number}\n" \
-           f"To answer: Use 'adb shell input keyevent KEYCODE_CALL'\n" \
-           f"To reject: Use 'adb shell input keyevent KEYCODE_ENDCALL'" 
+    return (
+        f"Incoming call from: {caller_number}\n"
+        f"To answer: Use 'adb shell input keyevent KEYCODE_CALL'\n"
+        f"To reject: Use 'adb shell input keyevent KEYCODE_ENDCALL'"
+    )

@@ -2,6 +2,7 @@ import asyncio
 import subprocess
 from .config import COMMAND_TIMEOUT, AUTO_RETRY_CONNECTION, MAX_RETRY_COUNT
 
+
 async def run_command(cmd: str, timeout: int = None) -> tuple[bool, str]:
     """Run a shell command and return success status and output.
 
@@ -18,24 +19,21 @@ async def run_command(cmd: str, timeout: int = None) -> tuple[bool, str]:
     # Use default timeout from config if not specified
     if timeout is None:
         timeout = COMMAND_TIMEOUT
-        
+
     try:
         process = await asyncio.create_subprocess_shell(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        
+
         try:
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(), 
-                timeout=timeout
+                process.communicate(), timeout=timeout
             )
-            
+
             if process.returncode == 0:
-                return True, stdout.decode('utf-8')
+                return True, stdout.decode("utf-8")
             else:
-                return False, stderr.decode('utf-8')
+                return False, stderr.decode("utf-8")
         except asyncio.TimeoutError:
             # Try to terminate the process if it timed out
             try:
@@ -64,15 +62,15 @@ async def check_device_connection() -> str:
 
         if success:
             # 正确检测设备连接的逻辑
-            lines = output.strip().split('\n')
-            
+            lines = output.strip().split("\n")
+
             # 检查是否有除了"List of devices attached"之外的行，且有包含"device"状态的设备
             device_connected = False
             for line in lines[1:]:  # 跳过第一行"List of devices attached"
-                if line.strip() and '\tdevice' in line:
+                if line.strip() and "\tdevice" in line:
                     device_connected = True
                     break
-            
+
             if device_connected:
                 return "Device is connected and ready."
             else:
@@ -88,6 +86,6 @@ async def check_device_connection() -> str:
                 return "No device found. Please connect a device and ensure USB debugging is enabled."
         else:
             return f"Failed to check device connection: {output}"
-        
+
         # If we're not retrying, break out of the loop
-        break 
+        break
