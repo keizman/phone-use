@@ -7,8 +7,53 @@
 
 ### 📥 安装
 ```bash
+pip install phone-mcp
+# 或使用 uvx
 uvx phone-mcp
 ```
+
+### 🔧 配置说明
+
+#### Cursor 配置
+在 `~/.cursor/mcp.json` 中配置：
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "uvx",
+            "args": [
+                "phone-mcp"
+            ]
+        }
+    }
+}
+```
+
+#### Claude 配置
+在 Claude 配置中添加：
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "uvx",
+            "args": [                
+                "phone-mcp"
+            ]
+        }
+    }
+}
+```
+
+使用方法：
+- 在 Claude 对话中直接使用命令，例如：
+  ```
+   帮我给联系人hao打电话
+  ```
+
+⚠️ 使用前请确保：
+- ADB 已正确安装并配置
+- Android 设备已启用 USB 调试
+- 设备已通过 USB 连接到电脑
 
 ### 🎯 主要功能
 
@@ -45,10 +90,7 @@ phone-cli record
 
 # 打开应用
 phone-cli app camera
-```
 
-### 🌐 地图功能
-```bash
 # 搜索周边POI
 phone-cli map-around 116.480053,39.987005 --keywords 餐厅 --radius 1000
 ```
