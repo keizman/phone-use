@@ -11,15 +11,15 @@ DEFAULT_API_KEY = os.environ.get("AMAP_MAPS_API_KEY")
 HAS_VALID_API_KEY = DEFAULT_API_KEY is not None and DEFAULT_API_KEY.strip() != ""
 
 
-async def get_poi_info_by_location(
+async def get_phone_numbers_from_poi(
     location: str, keywords: Optional[str] = None, radius: Optional[str] = "1000"
 ) -> str:
     """
-    Search for Points of Interest (POIs) around a specified location and get their detailed information including phone numbers.
+    Retrieve phone numbers and information from Points of Interest (POIs) around a specified location.
 
-    This function uses the AMap API to find POIs near a given coordinate location. It allows filtering by keywords
-    and setting a custom search radius. The returned data includes detailed POI information such as names, addresses,
-    phone numbers, business hours, and more.
+    This function uses the AMap API to find nearby businesses and points of interest, primarily to obtain
+    their contact phone numbers. It searches around a given coordinate location, allowing keyword filtering
+    and custom search radius. The results include business names, addresses, phone numbers, and additional details.
 
     Args:
         location (str): Central coordinate point in format: "longitude,latitude"
@@ -27,7 +27,7 @@ async def get_poi_info_by_location(
         radius (str, optional): Search radius in meters. Default is 1000 meters.
 
     Returns:
-        str: JSON string containing POI information or error details if the search fails
+        str: JSON string containing POI information with phone numbers or error details if the search fails
     """
     if not HAS_VALID_API_KEY:
         return json.dumps(

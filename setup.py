@@ -5,7 +5,6 @@ setup(
     name="phone-mcp",
     use_scm_version=True,
     setup_requires=["setuptools-scm"],
-    version="0.2.1",
     packages=find_packages(),
     install_requires=[
         "mcp>=1.6.0",

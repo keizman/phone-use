@@ -34,12 +34,12 @@ from .tools.ui_enhanced import (
     wait_for_element,
     scroll_to_element,
 )
-from .tools.ui_monitor import monitor_ui_changes
+from .tools.ui_monitor import monitor_ui_changes, mcp_monitor_ui_changes
 from .tools.screen_interface import analyze_screen, interact_with_screen
 
 # Import map-related functionality, including environment variable check
 try:
-    from .tools.maps import get_poi_info_by_location, HAS_VALID_API_KEY
+    from .tools.maps import get_phone_numbers_from_poi, HAS_VALID_API_KEY
 except ImportError:
     HAS_VALID_API_KEY = False
 
@@ -57,7 +57,7 @@ def format_json_output(json_str: str, pretty: bool = True) -> str:
         if pretty:
             # Check if it's simple data
             if isinstance(data, dict) and "status" in data:
-                if data["status"] == "success":
+                if data["status"] == "success" or data["status"] == "1":
                     return f"✅ {data.get('message', 'Operation successful')}"
                 else:
                     return f"❌ {data.get('message', 'Operation failed')}"
@@ -680,16 +680,18 @@ async def receive_sms(args):
 
 
 async def get_phone_by_poi(args):
-    """Search for POI information (including phone numbers) around a specified location."""
+    """Search for phone numbers from POIs (Points of Interest) around a specified location."""
     try:
         # Check if API key is configured properly
         if not HAS_VALID_API_KEY:
             print("❌ API key for map services is not properly configured")
             print("Please configure a valid API key in your environment variables")
             print("See the documentation for more details on setting up map services")
+            print("Windows: set AMAP_MAPS_API_KEY=your_api_key")
+            print("Linux/Mac: export AMAP_MAPS_API_KEY=your_api_key")
             return
             
-        logger.info(f"Searching for POIs near {args.location} with keywords: {args.keywords} (radius: {args.radius}m)")
+        logger.info(f"Searching for phone numbers near {args.location} with keywords: {args.keywords} (radius: {args.radius}m)")
         
         # Validate location format (should be longitude,latitude)
         location = args.location
@@ -708,7 +710,7 @@ async def get_phone_by_poi(args):
             return
             
         # Call the POI search function
-        result = await get_poi_info_by_location(args.location, args.keywords, args.radius)
+        result = await get_phone_numbers_from_poi(args.location, args.keywords, args.radius)
         
         # Debug output if requested
         if args.debug:
@@ -719,7 +721,7 @@ async def get_phone_by_poi(args):
             data = json.loads(result)
             
             # Check if the request was successful
-            if data.get("status") == "success" and "pois" in data:
+            if data.get("status") == "1" and "pois" in data:
                 pois_list = data["pois"]
                 
                 if len(pois_list) == 0:
@@ -732,7 +734,7 @@ async def get_phone_by_poi(args):
                     for i, poi in enumerate(pois_list, 1):
                         name = poi.get("name", "Unknown")
                         address = poi.get("address", "No address")
-                        phone = poi.get("phone", "No phone")
+                        phone = poi.get("tel", "No phone")
                         distance = poi.get("distance", "Unknown")
                         
                         print(f"{i}. {name}")
@@ -1139,6 +1141,30 @@ def _is_valid_phone_number(number: str) -> bool:
     return True
 
 
+async def open_web(args):
+    """Open a URL in the device's default browser."""
+    result = await open_url(args.url)
+    print(format_json_output(result))
+
+
+async def monitor_ui(args):
+    """Monitor UI for changes."""
+    from .tools.ui_monitor import mcp_monitor_ui_changes
+    
+    # 将命令行参数映射到函数参数
+    result = await mcp_monitor_ui_changes(
+        interval_seconds=args.interval,
+        max_duration_seconds=args.duration,
+        watch_for=args.watch_for,
+        target_text=args.text if hasattr(args, 'text') else "",
+        target_id=args.id if hasattr(args, 'id') else "",
+        target_class=args.class_name if hasattr(args, 'class_name') else "",
+        target_content_desc=args.content_desc if hasattr(args, 'content_desc') else ""
+    )
+    
+    print(format_json_output(result, args.raw if hasattr(args, 'raw') else False))
+
+
 def main():
     """Entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Phone MCP CLI - Control your Android phone from the command line")
@@ -1229,7 +1255,7 @@ def main():
     subparsers.add_parser("incoming", help="Check for incoming calls")
     
     # POI command for getting location information
-    poi_parser = subparsers.add_parser("get-poi", help="Get POI information (including phone numbers) by location")
+    poi_parser = subparsers.add_parser("get-poi", help="Get phone numbers from nearby businesses and POIs by location")
     poi_parser.add_argument("location", help="Central coordinate point (longitude,latitude)")
     poi_parser.add_argument("--keywords", help="Search keywords (e.g., 'restaurant', 'hotel')")
     poi_parser.add_argument("--radius", default="1000", help="Search radius in meters (default: 1000)")
@@ -1244,6 +1270,23 @@ def main():
     screen_interact_parser.add_argument("action", choices=["tap", "swipe", "key", "text", "find", "wait", "scroll"], 
                                    help="Interaction action type")
     screen_interact_parser.add_argument("params", nargs="+", help="Interaction parameters in key=value format")
+    
+    # Open URL command
+    open_url_parser = subparsers.add_parser("open-url", help="Open a URL in the device's default browser")
+    open_url_parser.add_argument("url", help="URL to open (http:// or https:// will be added if missing)")
+    
+    # Add UI monitoring command
+    monitor_parser = subparsers.add_parser("monitor-ui", help="Monitor UI for changes")
+    monitor_parser.add_argument("--interval", type=float, default=1.0, help="Time between checks in seconds")
+    monitor_parser.add_argument("--duration", type=float, default=60.0, help="Maximum monitoring time in seconds")
+    monitor_parser.add_argument("--watch-for", type=str, default="any_change", 
+                              help="What to watch for: any_change, text_appears, id_appears, etc.")
+    monitor_parser.add_argument("--text", type=str, help="Text to watch for")
+    monitor_parser.add_argument("--id", type=str, help="Element ID to watch for")
+    monitor_parser.add_argument("--class-name", type=str, help="Element class to watch for")
+    monitor_parser.add_argument("--content-desc", type=str, help="Content description to watch for")
+    monitor_parser.add_argument("--raw", action="store_true", help="Output raw JSON")
+    monitor_parser.set_defaults(func=monitor_ui)
     
     # Parse arguments
     args = parser.parse_args()
@@ -1281,12 +1324,18 @@ def main():
         "record": record,
         "media": media_control,
         
+        # Browser functions
+        "open-url": open_web,
+        
         # Map functions
         "get-poi": get_phone_by_poi,
         
         # Updated command names
         "analyze-screen": screen_analysis,
         "screen-interact": screen_interact,
+        
+        # UI monitoring command
+        "monitor-ui": monitor_ui,
     }
     
     # Check if command exists

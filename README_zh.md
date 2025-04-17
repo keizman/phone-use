@@ -3,6 +3,8 @@
 
 🌟 一个强大的 MCP 手机控制插件，让您轻松通过 ADB 命令控制 Android 手机。
 
+[English Documentation](README.md)
+
 ## ⚡ 快速开始
 
 ### 📥 安装
@@ -58,16 +60,17 @@ uvx phone-mcp
 ## 🎯 主要功能
 
 - 📞 **通话功能**：拨打电话、结束通话、接收来电
-- 💬 **短信功能**：发送短信、接收短信
+- 💬 **短信功能**：发送短信、接收短信、获取原始短信
 - 👥 **联系人功能**：访问手机联系人
 - 📸 **媒体功能**：截屏、录屏、控制媒体播放
 - 📱 **应用功能**：打开应用程序、设置闹钟、列出已安装应用、关闭应用
 - 🔧 **系统功能**：获取窗口信息、应用快捷方式
-- 🗺️ **地图功能**：搜索周边POI信息
+- 🗺️ **地图功能**：搜索周边带电话号码的POI信息
 - 🖱️ **UI交互**：点击、滑动、输入文本、按键操作
 - 🔍 **UI检查**：通过文本、ID、类名或描述查找元素
 - 🤖 **UI自动化**：等待元素出现、滚动查找元素、监控UI变化
 - 🧠 **屏幕分析**：结构化屏幕信息和统一交互接口
+- 🌐 **浏览器功能**：在设备默认浏览器中打开URL
 
 ## 🛠️ 系统要求
 
@@ -119,10 +122,13 @@ phone-cli app camera
 phone-cli close-app com.android.camera
 
 # 列出已安装应用
-phone-cli list-apps
+phone-cli list-apps --filter 相机 --third-party
 
 # 启动特定活动
 phone-cli launch com.android.settings/.Settings
+
+# 在默认浏览器中打开网页
+phone-cli open-url google.com
 ```
 
 ### 屏幕分析与UI交互
@@ -156,6 +162,9 @@ phone-cli screen-interact wait method=text value="成功" timeout=10
 
 # 滚动查找元素
 phone-cli screen-interact scroll method=text value="设置" direction=down max_swipes=5
+
+# 监控UI变化
+phone-cli monitor-ui --interval 1 --duration 60
 ```
 
 ### 位置与地图
@@ -173,7 +182,7 @@ phone-cli get-poi 116.480053,39.987005 --keywords 餐厅 --radius 1000
 1. **分析屏幕**：获取UI元素和文本的结构化分析
 2. **做出决策**：基于检测到的UI模式和可用操作
 3. **执行交互**：通过一致的参数系统
-
+4. **监控变化**：持续观察UI变化并自动响应
 
 ## 📚 详细文档
 

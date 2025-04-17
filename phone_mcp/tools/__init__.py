@@ -40,7 +40,7 @@ from .ui_enhanced import (
 )
 
 # Import map-related functionality, including environment variable check
-from .maps import get_poi_info_by_location, HAS_VALID_API_KEY
+from .maps import get_phone_numbers_from_poi, HAS_VALID_API_KEY
 
 # Basic tools list
 __all__ = [
@@ -79,4 +79,4 @@ __all__ = [
 
 # Only add map functionality if there is a valid API key
 if HAS_VALID_API_KEY:
-    __all__.append("get_poi_info_by_location")
+    __all__.append("get_phone_numbers_from_poi")

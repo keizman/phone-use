@@ -467,3 +467,175 @@ async def compare_ui_states(snapshot1: str, snapshot2: str) -> str:
             {"status": "error", "message": f"Failed to compare UI states: {str(e)}"},
             indent=2,
         )
+
+
+async def mcp_monitor_ui_changes(
+    interval_seconds: float = 1.0,
+    max_duration_seconds: float = 60.0,
+    watch_for: str = "any_change",
+    target_text: str = "",
+    target_id: str = "",
+    target_class: str = "",
+    target_content_desc: str = ""
+) -> str:
+    """Monitor the UI for changes with MCP compatible parameters.
+    
+    This is a simplified version of monitor_ui_changes that doesn't use callback functions,
+    making it compatible with MCP's JSON schema requirements.
+
+    Args:
+        interval_seconds (float): Time between UI checks (seconds)
+        max_duration_seconds (float): Maximum monitoring time (seconds)
+        watch_for (str): What to watch for - "any_change", "text_appears", "text_disappears", 
+                        "id_appears", "id_disappears", "class_appears", "content_desc_appears"
+        target_text (str): Text to watch for (when watch_for includes "text")
+        target_id (str): ID to watch for (when watch_for includes "id")
+        target_class (str): Class to watch for (when watch_for includes "class")
+        target_content_desc (str): Content description to watch for (when watch_for includes "content_desc")
+
+    Returns:
+        str: JSON string with monitoring results
+    """
+    # Check for connected device
+    connection_status = await check_device_connection()
+    if "ready" not in connection_status:
+        return json.dumps(
+            {
+                "status": "error",
+                "message": "Device not connected",
+                "details": connection_status,
+            },
+            indent=2,
+        )
+
+    start_time = time.time()
+    previous_snapshot = None
+    change_count = 0
+    changes = []
+    condition_met = False
+    condition_met_time = None
+
+    # Take initial snapshot
+    try:
+        initial_dump = await dump_ui()
+        initial_data = json.loads(initial_dump)
+        if initial_data.get("status") != "success":
+            return json.dumps(
+                {"status": "error", "message": "Failed to take initial UI snapshot"},
+                indent=2,
+            )
+        
+        previous_snapshot = UISnapshot(initial_data)
+    except Exception as e:
+        return json.dumps(
+            {"status": "error", "message": f"Error initializing UI monitoring: {str(e)}"},
+            indent=2,
+        )
+
+    # Helper function to check for specific conditions
+    async def check_condition(current_data: Dict[str, Any]) -> bool:
+        if watch_for == "any_change":
+            return True
+        
+        elements = current_data.get("elements", [])
+        
+        if watch_for == "text_appears":
+            for elem in elements:
+                if target_text in elem.get("text", ""):
+                    return True
+            return False
+        
+        elif watch_for == "text_disappears":
+            for elem in elements:
+                if target_text in elem.get("text", ""):
+                    return False
+            return True
+            
+        elif watch_for == "id_appears":
+            for elem in elements:
+                if target_id in elem.get("resource-id", ""):
+                    return True
+            return False
+            
+        elif watch_for == "id_disappears":
+            for elem in elements:
+                if target_id in elem.get("resource-id", ""):
+                    return False
+            return True
+            
+        elif watch_for == "class_appears":
+            for elem in elements:
+                if target_class in elem.get("class", ""):
+                    return True
+            return False
+            
+        elif watch_for == "content_desc_appears":
+            for elem in elements:
+                if target_content_desc in elem.get("content-desc", ""):
+                    return True
+            return False
+            
+        return False
+
+    # Monitor loop
+    while time.time() - start_time < max_duration_seconds and not condition_met:
+        # Wait for the specified interval
+        await asyncio.sleep(interval_seconds)
+
+        # Take a new snapshot
+        try:
+            current_dump = await dump_ui()
+            current_data = json.loads(current_dump)
+            if current_data.get("status") != "success":
+                continue
+                
+            current_snapshot = UISnapshot(current_data)
+        except Exception:
+            continue
+
+        # Check if the UI has changed
+        if previous_snapshot and current_snapshot.differs_from(previous_snapshot):
+            change_count += 1
+            change_time = time.time()
+
+            # Get added and removed elements
+            added = current_snapshot.get_added_elements(previous_snapshot)
+            removed = previous_snapshot.get_removed_elements(current_snapshot)
+
+            change_info = {
+                "timestamp": change_time,
+                "elapsed_seconds": change_time - start_time,
+                "elements_before": previous_snapshot.elements_count,
+                "elements_after": current_snapshot.elements_count,
+                "elements_added": len(added),
+                "elements_removed": len(removed),
+                "added_elements": added[:5],  # Limit to first 5 for brevity
+                "removed_elements": removed[:5],  # Limit to first 5 for brevity
+            }
+
+            changes.append(change_info)
+            
+            # Check if the specific condition is met
+            if await check_condition(current_data):
+                condition_met = True
+                condition_met_time = change_time
+
+            # Update the previous snapshot
+            previous_snapshot = current_snapshot
+
+    # Prepare final report
+    end_time = time.time()
+    duration = end_time - start_time
+
+    return json.dumps(
+        {
+            "status": "complete",
+            "condition_met": condition_met,
+            "condition_type": watch_for,
+            "duration_seconds": duration,
+            "condition_met_at": condition_met_time - start_time if condition_met_time else None,
+            "changes_detected": change_count,
+            "changes": changes,
+        },
+        indent=2,
+    )

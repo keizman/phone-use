@@ -60,7 +60,7 @@ Usage:
 ## 🎯 Key Features
 
 - 📞 **Call Functions**: Make calls, end calls, receive incoming calls
-- 💬 **Messaging**: Send and receive SMS
+- 💬 **Messaging**: Send and receive SMS, get raw messages
 - 👥 **Contacts**: Access phone contacts
 - 📸 **Media**: Screenshots, screen recording, media control
 - 📱 **Apps**: Launch applications, set alarms, list installed apps, terminate apps
@@ -70,6 +70,7 @@ Usage:
 - 🔍 **UI Inspection**: Find elements by text, ID, class or description
 - 🤖 **UI Automation**: Wait for elements, scroll to find elements, monitor UI changes
 - 🧠 **Screen Analysis**: Structured screen information and unified interaction
+- 🌐 **Web Browser**: Open URLs in device's default browser
 
 ## 🛠️ Requirements
 
@@ -125,6 +126,9 @@ phone-cli list-apps --filter camera --third-party
 
 # Launch specific activity
 phone-cli launch com.android.settings/.Settings
+
+# Open URL in default browser
+phone-cli open-url google.com
 ```
 
 ### Screen Analysis & Interaction
@@ -158,6 +162,9 @@ phone-cli screen-interact wait method=text value="Success" timeout=10
 
 # Scroll to find element
 phone-cli screen-interact scroll method=text value="Settings" direction=down max_swipes=5
+
+# Monitor UI changes
+phone-cli monitor-ui --interval 1 --duration 60
 ```
 
 ### Location & Maps
@@ -175,7 +182,7 @@ The unified screen interaction interface allows intelligent agents to easily:
 1. **Analyze the screen**: Get a structured analysis of UI elements and text
 2. **Make decisions**: Based on detected UI patterns and available actions
 3. **Execute interactions**: Through a consistent parameter system
-
+4. **Monitor changes**: Continuously observe UI changes and respond automatically
 
 ## 📚 Documentation
 
