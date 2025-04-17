@@ -7,6 +7,7 @@ from unittest.mock import patch
 # 不使用pytest_plugins，而是直接配置插件
 # pytest_plugins = ['pytest_asyncio']
 
+
 # 定义全局pytest配置
 def pytest_configure(config):
     """配置pytest运行时环境"""
@@ -23,15 +24,15 @@ def clean_env():
     """每次测试前清理可能影响测试的环境变量"""
     # 保存原始环境变量
     saved_vars = {}
-    test_vars = ['AMAP_MAPS_API_KEY']
-    
+    test_vars = ["AMAP_MAPS_API_KEY"]
+
     for var in test_vars:
         if var in os.environ:
             saved_vars[var] = os.environ[var]
             del os.environ[var]
-    
+
     yield
-    
+
     # 恢复原始环境变量
     for var, value in saved_vars.items():
         os.environ[var] = value
@@ -53,16 +54,17 @@ def ignore_asyncio_warnings():
 @pytest.fixture
 def mock_app():
     """提供模拟的app对象，用于CLI测试"""
+
     class MockApp:
         def __init__(self):
             self.args = None
             self.command_called = None
-            
+
         async def call_command(self, command, args):
             self.command_called = command
             self.args = args
             return f"Called {command} with {args}"
-    
+
     return MockApp()
 
 
@@ -70,6 +72,6 @@ def mock_app():
 @pytest.fixture
 def mock_cli_run():
     """模拟CLI运行，捕获参数和命令"""
-    with patch('sys.argv') as mock_argv:
-        with patch('asyncio.run') as mock_run:
-            yield mock_argv, mock_run 
+    with patch("sys.argv") as mock_argv:
+        with patch("asyncio.run") as mock_run:
+            yield mock_argv, mock_run

@@ -12,10 +12,11 @@ from ..core import run_command
 async def _check_contact_permissions():
     """Check if the app has the necessary permissions to access contacts."""
     # Try to check if we have permission by running a simple query
-    cmd = "adb shell pm list permissions -g | grep -i contacts"
+    cmd = "adb shell pm list permissions -g"
     success, output = await run_command(cmd)
 
-    return success and "contacts" in output.lower()
+    # Use Python to check for contacts permissions
+    return success and any("contacts" in line.lower() for line in output.splitlines())
 
 
 async def get_contacts(limit=20):
@@ -33,6 +34,7 @@ async def get_contacts(limit=20):
     """
     # Check for connected device
     from ..core import check_device_connection
+
     connection_status = await check_device_connection()
     if "ready" not in connection_status:
         return connection_status
@@ -65,15 +67,20 @@ async def get_contacts(limit=20):
                 for part in parts:
                     if "=" in part:
                         key, value = part.split("=", 1)
-                        contact[key.strip()] = value.strip()
+                        # Only add non-NULL values
+                        if value and value != "NULL" and value != "null":
+                            contact[key.strip()] = value.strip()
 
                 # Add the contact if it has at least name and number
-                if "name" in contact or "display_name" in contact:
+                if ("name" in contact or "display_name" in contact) and len(contact) > 0:
                     # Normalize the contact data
                     if "display_name" in contact and "name" not in contact:
                         contact["name"] = contact["display_name"]
+                    # Ensure phone field is called 'phone' and is consistent
                     if "number" in contact:
-                        contacts.append(contact)
+                        contact["phone"] = contact["number"]
+                    
+                    contacts.append(contact)
 
             if contacts:
                 return json.dumps(contacts, indent=2)
@@ -90,13 +97,13 @@ async def get_contacts(limit=20):
             contacts = []
 
             # Extract contacts with a regex pattern
-            contact_pattern = re.compile(r'name=([^,]+),\s+number=([^,]+)')
+            contact_pattern = re.compile(r"name=([^,]+),\s+number=([^,]+)")
             matches = contact_pattern.findall(output)
 
             for name, number in matches:
                 contacts.append({
-                    "name": name.strip(),
-                    "number": number.strip()
+                    "name": name.strip(), 
+                    "phone": number.strip()
                 })
 
             if contacts:
@@ -125,11 +132,19 @@ async def get_contacts(limit=20):
             success, output = await run_command(cmd)
 
         if not success or "usage:" in output:
-            cmd = "adb shell \"sqlite3 /data/data/com.android.providers.contacts/databases/contacts2.db 'SELECT display_name, data1 FROM raw_contacts JOIN data ON (raw_contacts._id = data.raw_contact_id) WHERE mimetype_id = (SELECT _id FROM mimetypes WHERE mimetype = \"vnd.android.cursor.item/phone_v2\") LIMIT " + str(
-                limit) + ";'\""
+            cmd = (
+                'adb shell "sqlite3 /data/data/com.android.providers.contacts/databases/contacts2.db \'SELECT display_name, data1 FROM raw_contacts JOIN data ON (raw_contacts._id = data.raw_contact_id) WHERE mimetype_id = (SELECT _id FROM mimetypes WHERE mimetype = "vnd.android.cursor.item/phone_v2") LIMIT '
+                + str(limit)
+                + ";'\""
+            )
             success, output = await run_command(cmd)
 
-        if not success or not output.strip() or "Error:" in output or "usage:" in output:
+        if (
+            not success
+            or not output.strip()
+            or "Error:" in output
+            or "usage:" in output
+        ):
             return "Failed to retrieve contacts. Contact access may require additional permissions or may not be supported on this device."
 
         # Process the output based on its format
@@ -141,11 +156,12 @@ async def get_contacts(limit=20):
                 if "|" in line:
                     parts = line.split("|")
                     if len(parts) >= 2:
-                        contact = {
-                            "name": parts[0].strip(),
-                            "number": parts[1].strip()
-                        }
-                        contacts.append(contact)
+                        # Only add if name and number are not empty
+                        name = parts[0].strip()
+                        number = parts[1].strip()
+                        if name and number:
+                            contact = {"name": name, "phone": number}
+                            contacts.append(contact)
         else:  # Content provider output format
             rows = output.split("Row: ")
             # Skip empty first element if it exists
@@ -162,13 +178,27 @@ async def get_contacts(limit=20):
                 for part in parts:
                     if "=" in part:
                         key, value = part.split("=", 1)
-                        contact[key.strip()] = value.strip()
+                        # Only add non-NULL values
+                        if value and value != "NULL" and value != "null":
+                            contact[key.strip()] = value.strip()
 
-                contacts.append(contact)
+                # Normalize fields before adding
+                if contact:
+                    if "display_name" in contact and "name" not in contact:
+                        contact["name"] = contact["display_name"]
+                    
+                    # Standardize phone number field
+                    if "number" in contact:
+                        contact["phone"] = contact["number"]
+                    elif "data1" in contact and contact.get("mimetype", "").endswith("phone_v2"):
+                        contact["phone"] = contact["data1"]
+                        
+                    contacts.append(contact)
 
         if not contacts:
             return "No contacts found or unable to parse contacts data."
 
+        # Return filtered contacts directly
         return json.dumps(contacts, indent=2)
     except Exception as e:
         return f"Error retrieving contacts: {str(e)}"
