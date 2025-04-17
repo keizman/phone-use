@@ -773,163 +773,97 @@ async def get_phone_by_poi(args):
 
 async def list_apps(args):
     """List installed applications."""
-    if args.system:
-        only_system = True
-        only_third_party = False
-    elif args.third_party:
-        only_system = False
-        only_third_party = True
-    else:
-        only_system = False
-        only_third_party = False
-        
     try:
-        # Log parameters for debugging
+        # 设置查询参数
+        only_system = args.system
+        only_third_party = args.third_party
+        use_basic_mode = not (hasattr(args, 'detailed') and args.detailed)
+        page = max(1, args.page) if hasattr(args, 'page') else 1
+        page_size = max(1, args.page_size) if hasattr(args, 'page_size') else 10
+        use_json = hasattr(args, 'json') and args.json
+        
         if args.verbose:
-            logger.debug(f"Listing apps with filter: {args.filter}, system: {only_system}, third_party: {only_third_party}")
+            logger.debug(f"Listing apps with system: {only_system}, third_party: {only_third_party}, basic: {use_basic_mode}")
         
         print("Fetching application list...")
-            
+        
+        # 获取应用列表
         result = await list_installed_apps(
-            filter_keyword=args.filter, 
             only_system=only_system,
             only_third_party=only_third_party,
-            limit=args.limit
+            limit=args.limit,
+            basic=use_basic_mode
         )
         
-        # First check if result is valid
+        # 解析结果
         if not result:
             print("❌ No response from device when listing applications")
             return
+        
+        try:
+            # 解析JSON结果
+            data = json.loads(result) if isinstance(result, str) else result
             
-        if args.verbose:
-            logger.debug(f"Raw result length: {len(result) if result else 0}")
-            logger.debug(f"Raw result type: {type(result)}")
-            logger.debug(f"Raw result preview: {result[:100] if isinstance(result, str) and len(result) > 100 else result}")
-            
-        # Check if the result is already a string
-        if isinstance(result, str):
-            # Try to parse the result
-            try:
-                data = json.loads(result)
-                
-                # Always display the apps list, not just a success message
-                if isinstance(data, dict) and data.get("status") == "success" and "apps" in data:
-                    apps_list = data["apps"]
-                    
-                    if len(apps_list) == 0:
-                        print("No applications found matching the criteria. Try without filters or check device connection.")
-                        return
-                        
-                    # Display the apps in a more readable format
-                    print(f"Found {len(apps_list)} applications:")
-                    
-                    # Default is now compact one-line format, 
-                    # JSON format only if --json flag is used
-                    if hasattr(args, 'json') and args.json:
-                        # Display full JSON with proper formatting
-                        print(json.dumps(apps_list, indent=2, ensure_ascii=False))
-                    else:
-                        # Display apps in one line per app format (default)
-                        for i, app in enumerate(apps_list, 1):
-                            if not isinstance(app, dict):
-                                # Skip non-dictionary entries
-                                continue
-                                
-                            app_name = app.get("app_name", "Unknown")
-                            package_name = app.get("package_name", "")
-                            app_type = "System" if app.get("is_system", False) else "User"
-                            
-                            # Add version info if available
-                            version_info = f" v{app.get('version_name', '')}" if app.get('version_name') else ""
-                            
-                            print(f"{i}. {app_name}{version_info} ({package_name}) - {app_type}")
-                            # Flush after each print to ensure output is visible immediately
-                            sys.stdout.flush()
-                                
-                elif isinstance(data, list):
-                    # Handle case where result is directly a list of apps
-                    apps_list = data
-                    
-                    if len(apps_list) == 0:
-                        print("No applications found matching the criteria. Try without filters or check device connection.")
-                        return
-                        
-                    # Display the apps in a more readable format
-                    print(f"Found {len(apps_list)} applications:")
-                    
-                    # Default is now compact one-line format, 
-                    # JSON format only if --json flag is used
-                    if hasattr(args, 'json') and args.json:
-                        # Display full JSON with proper formatting
-                        print(json.dumps(apps_list, indent=2, ensure_ascii=False))
-                    else:
-                        # Display apps in one line per app format (default)
-                        for i, app in enumerate(apps_list, 1):
-                            if not isinstance(app, dict):
-                                # Skip non-dictionary entries
-                                continue
-                                
-                            app_name = app.get("app_name", "Unknown")
-                            package_name = app.get("package_name", "")
-                            app_type = "System" if app.get("is_system", False) else "User"
-                            
-                            # Add version info if available
-                            version_info = f" v{app.get('version_name', '')}" if app.get('version_name') else ""
-                            
-                            print(f"{i}. {app_name}{version_info} ({package_name}) - {app_type}")
-                            # Flush after each print to ensure output is visible immediately
-                            sys.stdout.flush()
-                else:
-                    # For non-standard responses, use default formatting
-                    print(format_json_output(result))
-                    if args.verbose:
-                        logger.debug(f"Non-standard response structure. Keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dictionary'}")
-                
-            except json.JSONDecodeError as e:
-                # If parsing fails, output the raw result
-                print(f"Failed to parse apps list: {result}")
-                if args.verbose:
-                    logger.debug(f"JSON parse error: {str(e)}")
-        elif isinstance(result, list):
-            # Handle case where result is directly a list of apps
-            apps_list = result
-            
-            if len(apps_list) == 0:
-                print("No applications found matching the criteria. Try without filters or check device connection.")
-                return
-                
-            # Display the apps in a more readable format
-            print(f"Found {len(apps_list)} applications:")
-            
-            # Default is now compact one-line format, 
-            # JSON format only if --json flag is used
-            if hasattr(args, 'json') and args.json:
-                # Display full JSON with proper formatting
-                print(json.dumps(apps_list, indent=2, ensure_ascii=False))
+            # 提取应用列表
+            if isinstance(data, dict) and data.get("status") == "success" and "apps" in data:
+                apps_list = data["apps"]
+            elif isinstance(data, list):
+                apps_list = data
             else:
-                # Display apps in one line per app format (default)
-                for i, app in enumerate(apps_list, 1):
-                    if not isinstance(app, dict):
-                        # Skip non-dictionary entries
-                        continue
-                        
-                    app_name = app.get("app_name", "Unknown")
-                    package_name = app.get("package_name", "")
-                    app_type = "System" if app.get("is_system", False) else "User"
-                    
-                    # Add version info if available
-                    version_info = f" v{app.get('version_name', '')}" if app.get('version_name') else ""
-                    
-                    print(f"{i}. {app_name}{version_info} ({package_name}) - {app_type}")
-                    # Flush after each print to ensure output is visible immediately
-                    sys.stdout.flush()
-        else:
-            # Unexpected result type
-            print(f"❌ Unexpected result type: {type(result)}")
-            if args.debug:
-                print(f"Result: {result}")
+                # 非标准响应格式
+                print(format_json_output(result))
+                if args.verbose and isinstance(data, dict):
+                    logger.debug(f"Non-standard response structure. Keys: {list(data.keys())}")
+                return
             
+            # 检查是否有应用
+            if not apps_list:
+                print("No applications found. Try different filtering options or check device connection.")
+                return
+            
+            # 计算分页
+            total_apps = len(apps_list)
+            total_pages = (total_apps + page_size - 1) // page_size
+            page = min(page, total_pages)  # 确保页码有效
+            
+            # 获取当前页的应用
+            start_idx = (page - 1) * page_size
+            end_idx = min(start_idx + page_size, total_apps)
+            current_page_apps = apps_list[start_idx:end_idx]
+            
+            # 显示结果
+            print(f"Found {total_apps} applications (showing page {page}/{total_pages})")
+            
+            # JSON格式输出
+            if use_json:
+                print(json.dumps(current_page_apps, indent=2, ensure_ascii=False))
+                if total_pages > 1:
+                    print(f"\nPage {page}/{total_pages}. Use --page parameter to view other pages.")
+                return
+            
+            # 标准输出格式
+            for i, app in enumerate(current_page_apps, start_idx + 1):
+                if not isinstance(app, dict):
+                    continue
+                
+                app_name = app.get("app_name", "Unknown")
+                package_name = app.get("package_name", "")
+                app_type = "System" if app.get("is_system", False) else "User"
+                version_info = f" v{app.get('version_name', '')}" if app.get('version_name') else ""
+                
+                print(f"{i}. {app_name}{version_info} ({package_name}) - {app_type}")
+            
+            # 显示分页导航提示
+            if total_pages > 1:
+                print(f"\nPage {page}/{total_pages}. Use --page to view other pages.")
+                if page < total_pages:
+                    print(f"For next page: --page {page + 1}")
+                if page > 1:
+                    print(f"For previous page: --page {page - 1}")
+        
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse apps list: {e if args.verbose else ''}")
+    
     except Exception as e:
         logger.error(f"Error listing applications: {str(e)}")
         print(f"❌ Failed to list applications: {str(e)}")
@@ -958,7 +892,7 @@ async def screen_interact(args):
     """Execute screen interaction actions
     
     Unified interaction command supporting multiple interaction methods:
-    - tap: Tap screen (coordinates or element)
+    - tap: Tap screen at specified coordinates
     - swipe: Swipe screen
     - key: Key operation
     - text: Input text
@@ -1030,10 +964,7 @@ async def screen_interact(args):
                 print(f"❌ No elements found matching {params.get('value', '')}")
         
         elif args.action == "tap" and result_data.get("status") == "success":
-            if "element_text" in params:
-                print(f"✅ Tapped element with text '{params['element_text']}'")
-            else:
-                print(f"✅ Tapped screen at coordinates ({params.get('x', 0)}, {params.get('y', 0)})")
+            print(f"✅ Tapped screen at coordinates ({params.get('x', 0)}, {params.get('y', 0)})")
         
         elif args.action == "swipe" and result_data.get("status") == "success":
             print(f"✅ Swiped from ({params.get('x1', 0)}, {params.get('y1', 0)}) to ({params.get('x2', 0)}, {params.get('y2', 0)})")
@@ -1236,11 +1167,14 @@ def main():
     
     # List installed apps command
     apps_list_parser = subparsers.add_parser("list-apps", help="List installed applications")
-    apps_list_parser.add_argument("--filter", help="Filter apps by name")
     apps_list_parser.add_argument("--system", action="store_true", help="Show only system apps")
     apps_list_parser.add_argument("--third-party", action="store_true", help="Show only third-party apps")
     apps_list_parser.add_argument("--limit", type=int, default=50, help="Maximum number of apps to list")
     apps_list_parser.add_argument("--json", "-j", action="store_true", help="Show apps in JSON format instead of default compact format")
+    apps_list_parser.add_argument("--page", type=int, default=1, help="Page number for paginated results")
+    apps_list_parser.add_argument("--page-size", type=int, default=10, help="Number of apps per page")
+    apps_list_parser.add_argument("--basic", "-b", action="store_true", help="Show only basic app info (default behavior)")
+    apps_list_parser.add_argument("--detailed", "-d", action="store_true", help="Show detailed app info including version and SDK info")
     # Keep backward compatibility but with updated help text
     apps_list_parser.add_argument("--compact", "-c", action="store_true", help="Show apps in compact one-line format (default behavior)")
     apps_list_parser.add_argument("--oneline", "-o", action="store_true", help="Alias for --compact (default behavior)")

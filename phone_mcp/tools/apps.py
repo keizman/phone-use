@@ -66,15 +66,15 @@ async def open_app(app_name: str) -> str:
 
 
 async def list_installed_apps(
-    filter_keyword=None, only_system=False, only_third_party=False, limit=50
+    only_system=False, only_third_party=False, limit=50, basic=True
 ):
     """List installed applications on the device.
 
     Args:
-        filter_keyword (str, optional): Keyword to filter app packages by name
         only_system (bool): If True, only show system apps
         only_third_party (bool): If True, only show third-party apps
         limit (int): Maximum number of apps to return (default: 50)
+        basic (bool): If True, only return basic info (faster loading, default behavior)
 
     Returns:
         str: JSON string with list of installed apps or error message
@@ -109,18 +109,31 @@ async def list_installed_apps(
     for line in output.strip().split("\n"):
         if line.startswith("package:"):
             package_name = line[8:].strip()  # Remove "package:" prefix
-
-            # Apply keyword filter if provided
-            if filter_keyword and filter_keyword.lower() not in package_name.lower():
-                continue
-
             package_names.append(package_name)
 
     # Sort package names alphabetically
     package_names.sort()
     
-    # Apply limit
-    package_names = package_names[:limit]
+    # Apply limit - ensure it's an integer
+    try:
+        # Convert limit to integer if it's not already
+        limit_int = int(limit) if limit is not None else 50
+        # Use the limit if it's positive, otherwise use all packages
+        if limit_int > 0:
+            package_names = package_names[:limit_int]
+    except (ValueError, TypeError):
+        # If limit is not convertible to int, use default of 50
+        package_names = package_names[:50]
+    
+    # 批量获取所有系统应用(优化点：一次性获取所有系统应用)
+    system_packages = set()
+    if not only_system and not only_third_party:
+        sys_cmd = "adb shell cmd package list packages -s"
+        sys_success, sys_output = await run_command(sys_cmd)
+        if sys_success:
+            for line in sys_output.strip().split("\n"):
+                if line.startswith("package:"):
+                    system_packages.add(line[8:].strip())  # 将系统应用名称加入集合
     
     # Get details for all found packages
     detailed_apps = []
@@ -133,46 +146,41 @@ async def list_installed_apps(
             "is_system": False  # Will be updated below
         }
         
-        # Check if this is a system package
+        # Check if this is a system package (优化点：直接从预先获取的集合中查询)
         if only_system:
             app_info["is_system"] = True
         elif only_third_party:
             app_info["is_system"] = False
         else:
-            # Need to determine if system app
-            system_check_cmd = f"adb shell cmd package list packages -s | grep \"{package}\""
-            sys_success, sys_output = await run_command(system_check_cmd)
-            app_info["is_system"] = (sys_success and package in sys_output)
+            # 直接检查包名是否在系统应用集合中，无需再次执行adb命令
+            app_info["is_system"] = package in system_packages
         
-        # Get app label (display name)
-        get_label_cmd = f"adb shell dumpsys package {package} | grep -E 'targetSdk|applicationInfo'"
-        label_success, label_output = await run_command(get_label_cmd)
-        
-        if label_success and label_output:
-            # Try to extract the app name
-            name_match = re.search(r"label=([^=\s]+)", label_output)
-            if name_match:
-                app_info["app_name"] = name_match.group(1)
+        # 当basic=True时，跳过详细信息查询，只返回基本信息
+        if not basic:
+            # 优化：合并应用标签和版本信息的查询，一次获取所有需要的信息
+            info_cmd = f"adb shell dumpsys package {package} | grep -E 'targetSdk|applicationInfo|versionName|versionCode'"
+            info_success, info_output = await run_command(info_cmd)
+            
+            if info_success and info_output:
+                # 解析应用名称
+                name_match = re.search(r"label=([^=\s]+)", info_output)
+                if name_match:
+                    app_info["app_name"] = name_match.group(1)
+                    
+                # 解析目标SDK版本
+                sdk_match = re.search(r"targetSdk=(\d+)", info_output)
+                if sdk_match:
+                    app_info["target_sdk"] = sdk_match.group(1)
                 
-            # Try to extract target SDK version
-            sdk_match = re.search(r"targetSdk=(\d+)", label_output)
-            if sdk_match:
-                app_info["target_sdk"] = sdk_match.group(1)
-                
-        # Get app version information
-        version_cmd = f"adb shell dumpsys package {package} | grep -E 'versionName|versionCode'"
-        version_success, version_output = await run_command(version_cmd)
-        
-        if version_success and version_output:
-            # Extract version name
-            version_name_match = re.search(r"versionName=([^=\s]+)", version_output)
-            if version_name_match:
-                app_info["version_name"] = version_name_match.group(1)
-                
-            # Extract version code
-            version_code_match = re.search(r"versionCode=(\d+)", version_output)
-            if version_code_match:
-                app_info["version_code"] = version_code_match.group(1)
+                # 解析版本名称
+                version_name_match = re.search(r"versionName=([^=\s]+)", info_output)
+                if version_name_match:
+                    app_info["version_name"] = version_name_match.group(1)
+                    
+                # 解析版本号
+                version_code_match = re.search(r"versionCode=(\d+)", info_output)
+                if version_code_match:
+                    app_info["version_code"] = version_code_match.group(1)
         
         detailed_apps.append(app_info)
     
@@ -183,8 +191,6 @@ async def list_installed_apps(
         "apps": detailed_apps
     }
     
-    if filter_keyword:
-        result["filter"] = filter_keyword
     if only_system:
         result["type"] = "system"
     elif only_third_party:

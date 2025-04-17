@@ -22,28 +22,48 @@ from .media import take_screenshot
 logger = logging.getLogger("phone_mcp")
 
 class UIElement:
-    """Class representing a UI element, containing its properties and interaction methods
+    """Class representing a UI element with its properties and interaction methods
+    
+    This class handles parsing and storing UI element attributes from device UI dumps,
+    calculating element coordinates, and providing methods to interact with the element.
     
     Attributes:
+        data (dict): Raw element data dictionary
         text (str): Element text content
-        resource_id (str): Element resource ID
-        class_name (str): Element class name
-        content_desc (str): Element content description
-        clickable (bool): Whether the element is clickable
-        bounds (str): Element boundary coordinates string "[x1,y1][x2,y2]"
-        x1, y1, x2, y2 (int): Boundary coordinate values
-        center_x, center_y (int): Element center point coordinates
+        resource_id (str): Element resource ID for identification
+        class_name (str): Element class/type
+        content_desc (str): Element content description (accessibility text)
+        clickable (bool): Whether the element is marked as clickable
+        bounds (str): Element boundary coordinates string in format "[x1,y1][x2,y2]"
+        x1 (int): Left coordinate (if bounds successfully parsed)
+        y1 (int): Top coordinate (if bounds successfully parsed)
+        x2 (int): Right coordinate (if bounds successfully parsed)
+        y2 (int): Bottom coordinate (if bounds successfully parsed)
+        center_x (int): X coordinate of element center (if bounds successfully parsed)
+        center_y (int): Y coordinate of element center (if bounds successfully parsed)
     
     Methods:
-        to_dict(): Convert element to dictionary format
-        tap(): Tap the center of the element
+        to_dict(): Converts element to dictionary format for JSON serialization
+        tap(): Taps the center of the element if valid coordinates are available
+    
+    Note on Coordinate Parsing:
+        The class attempts to parse coordinates from the 'bounds' attribute which can be in different formats:
+        - String format: "[x1,y1][x2,y2]" from XML UI dumps
+        - Dictionary format: {"left": x1, "top": y1, "right": x2, "bottom": y2} from some JSON UI dumps
+        
+        If parsing fails for any reason, the coordinate attributes (x1, y1, x2, y2, center_x, center_y)
+        will not be set, and tap() operations will return an error with "Element does not have valid coordinates".
     """
     
     def __init__(self, element_data: Dict[str, Any]):
         """Initialize UI element
         
         Args:
-            element_data: Dictionary containing element properties
+            element_data (Dict[str, Any]): Dictionary containing element properties from UI dump
+            
+        Notes:
+            Coordinate parsing failures are logged but don't raise exceptions.
+            Check for existence of center_x/center_y attributes before attempting coordinate-based operations.
         """
         self.data = element_data
         self.text = element_data.get("text", "")
@@ -103,8 +123,27 @@ class UIElement:
     async def tap(self) -> str:
         """Tap the center of this element
         
+        Attempts to tap the center point of the element. This requires that the element's
+        bounds have been successfully parsed during initialization.
+        
         Returns:
-            str: JSON string of operation result, containing status and message
+            str: JSON string with operation result:
+                Success case:
+                {
+                    "status": "success",
+                    "message": "Tapped at (x, y)"
+                }
+                
+                Error case (no valid coordinates):
+                {
+                    "status": "error",
+                    "message": "Element does not have valid coordinates"
+                }
+        
+        Note:
+            If the element's bounds couldn't be parsed during initialization, this method
+            will return an error. In that case, consider using direct coordinate tapping
+            via the tap_screen() function with manually specified coordinates.
         """
         if hasattr(self, "center_x") and hasattr(self, "center_y"):
             return await tap_screen(self.center_x, self.center_y)
@@ -114,30 +153,57 @@ class UIElement:
 async def get_screen_info() -> str:
     """Get detailed information about the current screen, including all visible elements, text, coordinates, etc.
     
-    This function gets the complete UI hierarchy, parses all element attributes, and extracts text and clickable elements.
+    This function analyzes the current screen UI hierarchy, captures all elements and their attributes, and extracts key 
+    information like text and clickable elements. It attempts both JSON and XML parsing methods to ensure comprehensive results.
     
     Returns:
-        str: Screen information in JSON format, containing:
-            - status: Operation status ("success" or "error")
-            - screen_size: Screen size (width, height)
-            - all_elements_count: Total number of elements
-            - clickable_elements_count: Number of clickable elements
-            - text_elements_count: Number of text elements
-            - text_elements: List of elements containing text
-            - clickable_elements: List of clickable elements
-            - timestamp: Time when information was collected
+        str: JSON string containing screen information with the following structure:
+            {
+                "status": "success" | "error",  
+                "message": "Optional message about operation result",
+                "screen_size": {                 // Device screen dimensions
+                    "width": int,                // Width in pixels
+                    "height": int                // Height in pixels
+                },
+                "all_elements_count": int,       // Total number of elements found
+                "clickable_elements_count": int, // Number of clickable elements
+                "text_elements_count": int,      // Number of elements with visible text
+                "text_elements": [               // List of elements containing text
+                    {
+                        "text": str,             // Element text content
+                        "bounds": str,           // Element bounds in format "[x1,y1][x2,y2]"
+                        "center_x": int,         // X coordinate of element center (if available)
+                        "center_y": int,         // Y coordinate of element center (if available)
+                        "clickable": bool        // Whether the element is clickable (if available)
+                    },
+                    ...
+                ],
+                "clickable_elements": [          // List of clickable elements
+                    {
+                        "text": str,             // Element text (if any)
+                        "resource_id": str,      // Element resource ID (if any)
+                        "class_name": str,       // Element class name
+                        "content_desc": str,     // Element content description (if any)
+                        "bounds": str,           // Element bounds in format "[x1,y1][x2,y2]"
+                        "center_x": int,         // X coordinate of element center (if available)
+                        "center_y": int          // Y coordinate of element center (if available)
+                    },
+                    ...
+                ],
+                "timestamp": int                 // Unix timestamp when screen was analyzed
+            }
     
-    Example:
-        ```
-        {
-          "status": "success", 
-          "screen_size": {"width": 1080, "height": 2340},
-          "all_elements_count": 156,
-          "text_elements": [
-            {"text": "Settings", "bounds": "[52,1688][228,1775]", "center_x": 140, "center_y": 1732}
-          ]
-        }
-        ```
+    Error Return:
+        str: JSON string with error information:
+            {
+                "status": "error",
+                "message": "Error description"
+            }
+    
+    Notes:
+        - If the standard JSON UI dump fails, the function will attempt XML parsing as a fallback
+        - Screen size defaults to 1080x1920 if actual dimensions cannot be determined
+        - Element centers are only included when valid bounds are available and can be parsed
     """
     # 获取屏幕尺寸
     size_result = await get_screen_size()
@@ -354,42 +420,67 @@ async def get_screen_info() -> str:
 
 
 async def analyze_screen() -> str:
-    """Analyze the current screen and provide structured information
+    """Analyze the current screen and return detailed information with enhanced context
     
-    This function analyzes the current screen content, extracts useful information and organizes it by category, including:
-    - Text elements classified by region (top/middle/bottom)
-    - UI pattern detection (such as list view, bottom navigation bar, etc.)
-    - Possible interaction suggestions
-    
-    Suitable for understanding screen content and deciding next steps.
+    This function performs comprehensive screen analysis by:
+    1. Getting all visible UI elements and their properties
+    2. Detecting text and clickable elements
+    3. Identifying common UI patterns (headers, lists, buttons, etc.)
+    4. Analyzing screen context and purpose
+    5. Determining possible actions and next steps
     
     Returns:
-        str: Screen analysis results in JSON format, containing:
-            - status: Operation status ("success" or "error")
-            - screen_size: Screen size
-            - screen_analysis: Analysis results including text elements, UI patterns, clickable elements, etc.
-            - suggested_actions: Suggested interaction operations
-            - screenshot_path: Screenshot save path (if available)
+        str: JSON string containing analysis results with the following structure:
+            {
+                "status": "success" | "error",
+                "message": "Operation description or error message",
+                "screen_info": {
+                    // Basic screen information (same as get_screen_info)
+                    "screen_size": {"width": int, "height": int},
+                    "all_elements_count": int,
+                    "text_elements_count": int,
+                    "clickable_elements_count": int,
+                    
+                    // Element lists with details
+                    "text_elements": [
+                        {"text": str, "bounds": str, "center_x": int, "center_y": int, ...},
+                        ...
+                    ],
+                    "clickable_elements": [
+                        {"text": str, "bounds": str, "center_x": int, "center_y": int, ...},
+                        ...
+                    ],
+                    
+                    // Enhanced analysis results
+                    "screen_type": str,           // Identified screen type/purpose
+                    "main_content": str,          // Main content area description
+                    "possible_actions": [         // Possible user actions
+                        {"action": str, "element": object, "description": str},
+                        ...
+                    ],
+                    "navigation": {               // Navigation options
+                        "back": bool,             // Back button available
+                        "home": bool,             // Home navigation available
+                        "menu": bool,             // Menu available
+                        "tabs": [str, ...],       // Available tabs if any
+                        ...
+                    },
+                    
+                    // Additional context
+                    "context": str,               // Overall screen context description
+                    "recognized_patterns": [str], // UI patterns recognized
+                    "timestamp": int              // Analysis timestamp
+                }
+            }
     
-    Example:
-        ```
-        {
-          "status": "success",
-          "screen_analysis": {
-            "text_elements": {
-              "top": [{"text": "Settings", "center_x": 540, "center_y": 89}],
-              "middle": [{"text": "WLAN", "center_x": 270, "center_y": 614}],
-              "bottom": [{"text": "OK", "center_x": 540, "center_y": 2200}]
-            },
-            "ui_patterns": ["list_view"],
-            "notable_clickables": [...]
-          },
-          "suggested_actions": [
-            {"action": "tap_element", "element_text": "OK"}
-          ]
-        }
-        ```
+    Note:
+        Some fields may be absent if they couldn't be determined or aren't applicable
+        to the current screen. The function tries multiple approaches to gather information
+        and provides the most complete analysis possible.
     """
+    # 获取屏幕基本信息
+    # ... existing code ...
+
     # 初始化基本变量，确保在任何执行路径都有定义
     filtered_text_elements = []
     ui_patterns = []
@@ -937,73 +1028,117 @@ async def analyze_screen() -> str:
 async def interact_with_screen(action: str, params: Dict[str, Any]) -> str:
     """Execute screen interaction actions
     
-    Unified interaction interface supporting multiple interaction methods, including tapping, swiping, key pressing, text input, etc.
+    Unified interface for screen interactions including tapping, swiping, key pressing, text input, and element search.
     
     Args:
-        action: Action type, can be one of:
-            - "tap": Tap screen, requires coordinates or element text
-            - "swipe": Swipe screen, requires start and end coordinates
-            - "key": Press key, requires key code
-            - "text": Input text, requires text content
-            - "find": Find element, requires search method and value
-            - "wait": Wait for element to appear, requires search method, value and timeout parameters
-            - "scroll": Scroll to find element, requires search method, value and direction
-        params: Action parameter dictionary, different parameters needed for different actions:
-            - tap: element_text or x/y coordinates
-            - swipe: x1, y1, x2, y2, optional duration
-            - key: keycode
-            - text: content
-            - find: method, value
-            - wait: method, value, timeout, interval
-            - scroll: method, value, direction, max_swipes
+        action (str): Action type, one of:
+            - "tap": Tap screen at specified coordinates
+            - "swipe": Swipe screen from one position to another
+            - "key": Press a system key
+            - "text": Input text
+            - "find": Find UI element(s)
+            - "wait": Wait for element to appear
+            - "scroll": Scroll to find element
+            
+        params (Dict[str, Any]): Parameters dictionary with action-specific values:
+            For "tap" action:
+                - x (int): X coordinate to tap
+                - y (int): Y coordinate to tap
+            
+            For "swipe" action:
+                - x1 (int): Start X coordinate
+                - y1 (int): Start Y coordinate
+                - x2 (int): End X coordinate
+                - y2 (int): End Y coordinate
+                - duration (int, optional): Swipe duration in ms, defaults to 300
+            
+            For "key" action:
+                - keycode (str/int): Key to press (e.g., "back", "home", "enter", or keycode number)
+            
+            For "text" action:
+                - content (str): Text to input
+            
+            For "find" action:
+                - method (str): Search method, one of: "text", "id", "content_desc", "class", "clickable"
+                - value (str): Text/value to search for (not required for method="clickable")
+                - partial (bool, optional): Use partial matching, defaults to True (for text/content_desc)
+            
+            For "wait" action:
+                - method (str): Search method, same options as "find"
+                - value (str): Text/value to search for
+                - timeout (int, optional): Maximum wait time in seconds, defaults to 30
+                - interval (float, optional): Check interval in seconds, defaults to 1.0
+            
+            For "scroll" action:
+                - method (str): Search method, same options as "find"
+                - value (str): Text/value to search for
+                - direction (str, optional): Scroll direction, one of: "up", "down", "left", "right", defaults to "down"
+                - max_swipes (int, optional): Maximum swipe attempts, defaults to 5
     
     Returns:
-        str: JSON string of operation result, containing status and message
+        str: JSON string with operation result containing:
+            For successful operations:
+                {
+                    "status": "success",
+                    "message": "Operation-specific success message",
+                    ... (optional action-specific data)
+                }
+            
+            For failed operations:
+                {
+                    "status": "error",
+                    "message": "Error description"
+                }
+            
+            Special cases:
+                - find: Returns elements list containing matching elements with their properties
+                - wait: Returns success when element found or error if timeout
+                - scroll: Returns success when element found or error if not found after max attempts
     
-    Example:
-        ```python
-        # Tap coordinates
+    Examples:
+        # Tap by coordinates
         result = await interact_with_screen("tap", {"x": 100, "y": 200})
         
-        # Tap text element
-        result = await interact_with_screen("tap", {"element_text": "Login"})
-        
-        # Swipe screen
+        # Swipe down
         result = await interact_with_screen("swipe", 
-                                           {"x1": 500, "y1": 1000, 
-                                            "x2": 500, "y2": 200, 
+                                           {"x1": 500, "y1": 300, 
+                                            "x2": 500, "y2": 1200, 
                                             "duration": 300})
+        
+        # Input text
+        result = await interact_with_screen("text", {"content": "Hello world"})
+        
+        # Press back key
+        result = await interact_with_screen("key", {"keycode": "back"})
+        
+        # Find element by text
+        result = await interact_with_screen("find", 
+                                           {"method": "text", 
+                                            "value": "Settings", 
+                                            "partial": True})
         
         # Wait for element to appear
         result = await interact_with_screen("wait", 
                                            {"method": "text", 
                                             "value": "Success", 
-                                            "timeout": 10})
-        ```
+                                            "timeout": 10,
+                                            "interval": 0.5})
+                                            
+        # Scroll to find element
+        result = await interact_with_screen("scroll", 
+                                           {"method": "text", 
+                                            "value": "Privacy Policy", 
+                                            "direction": "down", 
+                                            "max_swipes": 8})
     """
     try:
         if action == "tap":
-            if "element_text" in params:
-                element_result = await find_element_by_text(
-                    params["element_text"], 
-                    params.get("partial", True)
-                )
-                element_data = json.loads(element_result)
-                
-                if element_data.get("status") == "success" and element_data.get("elements"):
-                    element = UIElement(element_data["elements"][0])
-                    return await element.tap()
-                else:
-                    return json.dumps({
-                        "status": "error", 
-                        "message": f"Could not find element with text '{params['element_text']}'"
-                    }, ensure_ascii=False)
-            elif "x" in params and "y" in params:
+            if "x" in params and "y" in params:
                 return await tap_screen(params["x"], params["y"])
             else:
                 return json.dumps({
                     "status": "error", 
-                    "message": "Missing valid tap parameters"
+                    "message": "Missing required x and y coordinates for tap action"
                 }, ensure_ascii=False)
                 
         elif action == "swipe":

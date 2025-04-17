@@ -121,8 +121,14 @@ phone-cli app camera
 # Close app
 phone-cli close-app com.android.camera
 
-# List installed apps
-phone-cli list-apps --filter camera --third-party
+# List installed apps (basic info, faster)
+phone-cli list-apps
+
+# List apps with pagination
+phone-cli list-apps --page 1 --page-size 10
+
+# List apps with detailed info (slower)
+phone-cli list-apps --detailed
 
 # Launch specific activity
 phone-cli launch com.android.settings/.Settings
@@ -138,9 +144,6 @@ phone-cli analyze-screen
 
 # Unified interaction interface
 phone-cli screen-interact <action> [parameters]
-
-# Tap on element by text
-phone-cli screen-interact tap element_text="Login"
 
 # Tap at coordinates
 phone-cli screen-interact tap x=500 y=800

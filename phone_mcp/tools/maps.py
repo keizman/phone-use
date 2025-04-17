@@ -1,14 +1,23 @@
-import requests
-import json
-import os
-import aiohttp
-from typing import Optional, Dict, Any, List, Union
+try:
+    import requests
+    import json
+    import os
+    import aiohttp
+    from typing import Optional, Dict, Any, List, Union
 
-# Default API key can be set through environment variable
-DEFAULT_API_KEY = os.environ.get("AMAP_MAPS_API_KEY")
+    # Default API key can be set through environment variable
+    DEFAULT_API_KEY = os.environ.get("AMAP_MAPS_API_KEY")
 
-# Check if there is a valid API key
-HAS_VALID_API_KEY = DEFAULT_API_KEY is not None and DEFAULT_API_KEY.strip() != ""
+    # Check if there is a valid API key
+    HAS_VALID_API_KEY = DEFAULT_API_KEY is not None and DEFAULT_API_KEY.strip() != ""
+except ImportError:
+    import json
+    import os
+    from typing import Optional, Dict, Any, List, Union
+    
+    # Mark as not available
+    HAS_VALID_API_KEY = False
+    DEFAULT_API_KEY = None
 
 
 async def get_phone_numbers_from_poi(

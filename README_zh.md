@@ -121,8 +121,14 @@ phone-cli app camera
 # 关闭应用
 phone-cli close-app com.android.camera
 
-# 列出已安装应用
-phone-cli list-apps --filter 相机 --third-party
+# 列出已安装应用（基本信息，速度更快）
+phone-cli list-apps
+
+# 分页显示应用列表
+phone-cli list-apps --page 1 --page-size 10
+
+# 显示应用详细信息（速度较慢）
+phone-cli list-apps --detailed
 
 # 启动特定活动
 phone-cli launch com.android.settings/.Settings
@@ -138,9 +144,6 @@ phone-cli analyze-screen
 
 # 统一交互接口
 phone-cli screen-interact <动作> [参数]
-
-# 通过文本点击元素
-phone-cli screen-interact tap element_text="登录"
 
 # 通过坐标点击
 phone-cli screen-interact tap x=500 y=800

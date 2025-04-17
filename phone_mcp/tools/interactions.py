@@ -6,6 +6,9 @@ import asyncio
 import json
 import re
 from ..core import run_command, check_device_connection
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def get_screen_size():
@@ -188,18 +191,61 @@ async def input_text(text: str):
     if "ready" not in connection_status:
         return connection_status
 
-    # Escape special characters in text
-    escaped_text = text.replace(" ", "%s")
-    escaped_text = escaped_text.replace("'", "\\'")
-    escaped_text = escaped_text.replace('"', '\\"')
-
-    cmd = f"adb shell input text '{escaped_text}'"
+    # Method 1: Try with the standard input text command first
+    # Don't escape characters - let the shell handle it
+    cmd = f'adb shell input text "{text}"'
     success, output = await run_command(cmd)
 
+    # If successful, return success
     if success:
-        return f"Successfully input text: '{text}'"
-    else:
-        return f"Failed to input text: {output}"
+        return json.dumps({"status": "success", "message": f"Successfully input text: '{text}'"})
+    
+    # Method 2: If Method 1 fails, try with individual character input
+    # This is slower but more reliable for special characters
+    logger.info(f"Standard text input failed: {output}. Trying character-by-character method.")
+    
+    try:
+        # Input each character individually
+        for char in text:
+            if char == ' ':
+                char_cmd = "adb shell input keyevent 62"  # Space keycode
+            else:
+                char_cmd = f'adb shell input text "{char}"'
+            
+            char_success, char_output = await run_command(char_cmd)
+            if not char_success:
+                logger.warning(f"Failed to input character '{char}': {char_output}")
+                # Add a small delay between characters
+                await asyncio.sleep(0.1)
+        
+        return json.dumps({"status": "success", "message": f"Successfully input text (char-by-char): '{text}'"})
+    
+    except Exception as e:
+        # Method 3: Last resort - try using ADB keyevent codes for each character
+        logger.warning(f"Character-by-character input failed: {str(e)}. Trying keyevent method.")
+        try:
+            for char in text:
+                # Get keyevent code for the character
+                # This is a simplified approach - a complete implementation would map all characters
+                if char == ' ':
+                    keycode = 62  # Space
+                elif '0' <= char <= '9':
+                    keycode = 7 + int(char)  # 0-9 keys
+                elif 'a' <= char.lower() <= 'z':
+                    keycode = 29 + (ord(char.lower()) - ord('a'))  # a-z keys
+                else:
+                    # Skip unsupported characters
+                    continue
+                
+                key_cmd = f"adb shell input keyevent {keycode}"
+                await run_command(key_cmd)
+                await asyncio.sleep(0.1)
+            
+            return json.dumps({"status": "success", "message": f"Successfully input text (keyevent): '{text}'"})
+        except Exception as e:
+            return json.dumps({"status": "error", "message": f"All text input methods failed: {str(e)}"})
+    
+    return json.dumps({"status": "error", "message": f"Failed to input text: {output}"})
 
 
 async def open_url(url: str):

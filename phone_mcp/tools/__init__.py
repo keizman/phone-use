@@ -40,7 +40,16 @@ from .ui_enhanced import (
 )
 
 # Import map-related functionality, including environment variable check
-from .maps import get_phone_numbers_from_poi, HAS_VALID_API_KEY
+try:
+    from .maps import get_phone_numbers_from_poi, HAS_VALID_API_KEY
+except ImportError:
+    # Define defaults if maps module can't be imported
+    HAS_VALID_API_KEY = False
+    
+    async def get_phone_numbers_from_poi(*args, **kwargs):
+        """Placeholder function when maps module is not available"""
+        import json
+        return json.dumps({"error": "Maps functionality not available. Module could not be imported."})
 
 # Basic tools list
 __all__ = [
