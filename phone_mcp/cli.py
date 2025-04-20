@@ -15,9 +15,11 @@ from .core import check_device_connection
 from .tools.call import call_number, end_call, receive_incoming_call
 from .tools.messaging import send_text_message, receive_text_messages, get_sent_messages
 from .tools.media import take_screenshot, start_screen_recording, play_media
-from .tools.apps import  set_alarm, list_installed_apps, terminate_app
+from .tools.apps import set_alarm, list_installed_apps, terminate_app, launch_app_activity
 from .tools.contacts import get_contacts, create_contact
-from .tools.system import get_current_window, get_app_shortcuts, launch_app_activity
+from .tools.system import get_current_window, get_app_shortcuts
+from .tools.system import launch_app_activity as launch_activity_system
+from .tools.maps import get_phone_numbers_from_poi
 from .tools.interactions import (
     tap_screen,
     swipe_screen,
@@ -663,7 +665,7 @@ async def launch(args):
     
     Can be used with 'shortcuts' command to discover available app activities.
     """
-    result = await launch_app_activity(package_component=args.component, action=args.action, extra_args=args.extras)
+    result = await launch_activity_system(package_component=args.component, action=args.action, extra_args=args.extras)
     print(format_json_output(result))
 
 
@@ -1145,14 +1147,14 @@ async def create_new_contact(args):
 
 
 async def app(args):
-    """Launch an app by name.
+    """Handle the 'app' command.
     
     This command launches an application by its friendly name or package name.
     It attempts to find and launch the most likely matching app if the exact name
     is not provided.
     """
     try:
-        from .tools.screen_interface import launch_app_activity
+        from .tools.apps import launch_app_activity as launch_app
         from .core import run_command
         
         # First try to match app name
@@ -1183,14 +1185,14 @@ async def app(args):
         if lower_app_name in common_apps:
             package_name = common_apps[lower_app_name]
             print(f"Launching {app_name} (common app: {package_name})...")
-            result = await launch_app_activity(package_name)
+            result = await launch_app(package_name)
             print(format_json_output(result))
             return
         
         # Check if package name is directly provided
         if "." in app_name and not " " in app_name:
             # Looks like a package name, directly try to start
-            result = await launch_app_activity(app_name)
+            result = await launch_app(app_name)
             print(format_json_output(result))
             return
             
@@ -1238,7 +1240,7 @@ async def app(args):
                 
                 if package_name:
                     print(f"Launching {app_name} ({package_name})...")
-                    result = await launch_app_activity(package_name)
+                    result = await launch_app(package_name)
                     print(format_json_output(result))
                 else:
                     print(f"❌ Found matching app but couldn't determine package name")
@@ -1261,7 +1263,7 @@ async def app(args):
                         success, output = await run_command(cmd)
                         if success and camera_pkg in output:
                             print(f"Launching Camera ({camera_pkg})...")
-                            result = await launch_app_activity(camera_pkg)
+                            result = await launch_app(camera_pkg)
                             print(format_json_output(result))
                             return
                 

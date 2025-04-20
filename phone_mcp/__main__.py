@@ -9,9 +9,9 @@ from .core import check_device_connection
 from .tools.call import call_number, end_call, receive_incoming_call
 from .tools.messaging import send_text_message, receive_text_messages, get_sent_messages
 from .tools.media import take_screenshot, start_screen_recording, play_media
-from .tools.apps import set_alarm, list_installed_apps, terminate_app
+from .tools.apps import set_alarm, list_installed_apps, terminate_app, launch_app_activity
 from .tools.contacts import get_contacts, create_contact
-from .tools.system import get_current_window, get_app_shortcuts, launch_app_activity
+from .tools.system import get_current_window, get_app_shortcuts
 # Import screen interface for unified interaction and analysis
 from .tools.screen_interface import analyze_screen, interact_with_screen
 # Import UI monitoring - use MCP compatible version

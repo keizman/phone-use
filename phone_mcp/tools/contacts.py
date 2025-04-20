@@ -279,3 +279,157 @@ async def create_contact(name: str, phone_number: str, email: str = None) -> str
         
     except Exception as e:
         return f"Error creating contact: {str(e)}"
+
+
+async def create_contact_ui(name: str, phone: str) -> str:
+    """Create a new contact with the given name and phone number using UI automation
+    
+    This function uses UI automation to create a new contact on the device. It:
+    1. Opens the contact creation intent
+    2. Pre-fills name and phone number fields
+    3. Waits for the contact form to appear
+    4. Analyzes the screen to find confirmation buttons
+    5. Taps the confirmation button to save the contact
+    
+    Args:
+        name (str): The contact's full name
+        phone (str): The phone number for the contact
+    
+    Returns:
+        str: JSON string with operation result containing:
+            For successful operations:
+                {
+                    "status": "success",
+                    "message": "Successfully created contact <name> with phone <phone>"
+                }
+            
+            For partial success operations:
+                {
+                    "status": "partial_success",
+                    "message": "Attempted to tap potential confirmation button location. Please verify contact creation."
+                }
+            
+            For failed operations:
+                {
+                    "status": "error",
+                    "message": "Error description"
+                }
+    
+    Examples:
+        # Create a contact with name and phone number
+        result = await create_contact_ui("John Doe", "123-456-7890")
+        
+        # Create a contact using a test phone number (recommended for testing)
+        result = await create_contact_ui("Test Contact", "10086")
+            
+    Note:
+        When testing this feature, it's recommended to use 10086 as the test phone number.
+        This is China Mobile's customer service number, which is suitable for testing
+        environments and easy to recognize.
+    """
+    try:
+        # Import app launcher functions
+        from .apps import launch_intent
+        from .ui_enhanced import wait_for_element
+        from .screen_interface import analyze_screen, tap_screen
+        import json
+        import logging
+        
+        logger = logging.getLogger("phone_mcp")
+        
+        # Step 1: Launch the contact creation intent
+        extras = {
+            "name": name,
+            "phone": phone
+        }
+        intent_result = await launch_intent(
+            "android.intent.action.INSERT", 
+            "vnd.android.cursor.dir/contact",
+            extras
+        )
+        
+        intent_data = json.loads(intent_result)
+        if intent_data.get("status") != "success":
+            return intent_result
+        
+        # Step 2: Wait for the contact form to appear
+        await wait_for_element("text", "Contact", timeout=5)  # Wait for Contact form
+        
+        # Step 3: Analyze screen to find confirmation button
+        screen_result = await analyze_screen()
+        screen_data = json.loads(screen_result)
+        
+        if screen_data.get("status") != "success":
+            return json.dumps({
+                "status": "error",
+                "message": "Failed to analyze screen to find confirmation button"
+            })
+        
+        # Look for confirmation button - common patterns
+        confirmation_buttons = ["Save", "Done", "Confirm", "OK", "✓", "√"]
+        found_button = None
+        
+        # Check suggested actions first
+        for action in screen_data.get("suggested_actions", []):
+            if action.get("action") == "tap_element":
+                text = action.get("element_text", "")
+                if text in confirmation_buttons or any(btn in text for btn in confirmation_buttons):
+                    found_button = text
+                    break
+        
+        # If not found in suggested actions, search in all clickable elements
+        if not found_button:
+            clickables = screen_data.get("screen_analysis", {}).get("notable_clickables", [])
+            for element in clickables:
+                text = element.get("text", "")
+                if text in confirmation_buttons or any(btn in text for btn in confirmation_buttons):
+                    found_button = text
+                    break
+        
+        # As a last resort, look for confirmation buttons in top-right corner
+        if not found_button:
+            # Try to tap top-right corner where save button is often located
+            size = screen_data.get("screen_size", {})
+            width = size.get("width", 1080)
+            
+            # Create tap action at approximately 90% of width and 10% of height
+            tap_x = int(width * 0.9)
+            tap_y = int(size.get("height", 1920) * 0.1)
+            
+            tap_result = await tap_screen(tap_x, tap_y)
+            tap_data = json.loads(tap_result)
+            
+            return json.dumps({
+                "status": "partial_success" if tap_data.get("status") == "success" else "error",
+                "message": "Attempted to tap potential confirmation button location. Please verify contact creation."
+            })
+        
+        # Step 4: Click the confirmation button if found
+        if found_button:
+            # Import in a narrower scope to avoid circular imports
+            from .screen_interface import interact_with_screen
+            tap_result = await interact_with_screen("tap", {"element_text": found_button})
+            tap_data = json.loads(tap_result)
+            
+            if tap_data.get("status") == "success":
+                return json.dumps({
+                    "status": "success",
+                    "message": f"Successfully created contact {name} with phone {phone}"
+                })
+            else:
+                return json.dumps({
+                    "status": "error",
+                    "message": f"Failed to tap confirmation button: {tap_data.get('message')}"
+                })
+        else:
+            return json.dumps({
+                "status": "error",
+                "message": "Could not find confirmation button"
+            })
+    
+    except Exception as e:
+        logger.error(f"Error creating contact: {str(e)}")
+        return json.dumps({
+            "status": "error",
+            "message": f"Failed to create contact: {str(e)}"
+        })

@@ -2,8 +2,11 @@
 
 import json
 import re
+import logging
 from ..core import run_command, check_device_connection
+from typing import Optional, Dict
 
+logger = logging.getLogger("phone_mcp")
 
 
 async def list_installed_apps(
@@ -292,3 +295,154 @@ async def set_alarm(hour: int, minute: int, label: str = "Alarm") -> str:
         return f"Alarm set for {time_str} with label '{label}'"
     else:
         return f"Failed to set alarm: {output}"
+
+
+async def launch_app_activity(package_name: str, activity_name: Optional[str] = None) -> str:
+    """Launch an app using package name and optionally an activity name
+    
+    This function uses adb to start an application on the device either by package name
+    or by specifying both package and activity. It provides reliable app launching across
+    different Android devices and versions.
+    
+    Args:
+        package_name (str): The package name of the app to launch (e.g., "com.android.contacts")
+        activity_name (str, optional): The specific activity to launch. If not provided,
+                                      launches the app's main activity. Defaults to None.
+    
+    Returns:
+        str: JSON string with operation result:
+            For successful operations:
+                {
+                    "status": "success",
+                    "message": "Successfully launched <package_name>"
+                }
+            
+            For failed operations:
+                {
+                    "status": "error",
+                    "message": "Failed to launch app: <error details>"
+                }
+    
+    Examples:
+        # Launch an app using just the package name
+        result = await launch_app_activity("com.android.contacts")
+        
+        # Launch a specific activity within an app
+        result = await launch_app_activity("com.android.dialer", "com.android.dialer.DialtactsActivity")
+        
+        # Launch Android settings
+        result = await launch_app_activity("com.android.settings")
+    """
+    try:
+        if activity_name:
+            # Launch specific activity
+            cmd = f"adb shell am start -n {package_name}/{activity_name}"
+        else:
+            # Launch app's main activity
+            cmd = f"adb shell monkey -p {package_name} -c android.intent.category.LAUNCHER 1"
+        
+        success, output = await run_command(cmd)
+        
+        if success:
+            return json.dumps({
+                "status": "success",
+                "message": f"Successfully launched {package_name}"
+            })
+        else:
+            return json.dumps({
+                "status": "error",
+                "message": f"Failed to launch app: {output}"
+            })
+    except Exception as e:
+        logger.error(f"Error launching app {package_name}: {str(e)}")
+        return json.dumps({
+            "status": "error",
+            "message": f"Failed to launch app: {str(e)}"
+        })
+
+
+async def launch_intent(intent_action: str, intent_type: Optional[str] = None, extras: Optional[Dict[str, str]] = None) -> str:
+    """Launch an activity using Android intent system
+    
+    This function allows launching activities using Android's intent system, which can be used
+    to perform various actions like opening the contacts app in "add new contact" mode,
+    opening URLs, or sharing content between apps.
+    
+    Args:
+        intent_action (str): The action to perform (e.g., "android.intent.action.INSERT",
+                          "android.intent.action.VIEW", "android.intent.action.SEND")
+        intent_type (str, optional): The MIME type for the intent (e.g., "vnd.android.cursor.dir/contact",
+                                  "text/plain", "image/jpeg"). Defaults to None.
+        extras (Dict[str, str], optional): Extra data to pass with the intent as key-value pairs.
+                                        Useful for pre-populating fields or passing data. Defaults to None.
+    
+    Returns:
+        str: JSON string with operation result:
+            For successful operations:
+                {
+                    "status": "success",
+                    "message": "Successfully launched intent: <intent_action>"
+                }
+            
+            For failed operations:
+                {
+                    "status": "error",
+                    "message": "Failed to launch intent: <error details>"
+                }
+    
+    Examples:
+        # Open contacts app in "add new contact" mode
+        extras = {"name": "John Doe", "phone": "1234567890"}
+        result = await launch_intent(
+            "android.intent.action.INSERT", 
+            "vnd.android.cursor.dir/contact", 
+            extras
+        )
+        
+        # Open URL in browser
+        result = await launch_intent(
+            "android.intent.action.VIEW",
+            None,
+            {"uri": "https://www.example.com"}
+        )
+        
+        # Share text
+        result = await launch_intent(
+            "android.intent.action.SEND",
+            "text/plain",
+            {"android.intent.extra.TEXT": "Hello world!"}
+        )
+    """
+    try:
+        # Construct base command
+        cmd = f"adb shell am start -a {intent_action}"
+        
+        # Add type if provided
+        if intent_type:
+            cmd += f" -t {intent_type}"
+        
+        # Add extras if provided
+        if extras:
+            for key, value in extras.items():
+                # Escape quotes in value
+                value = value.replace('"', '\\"')
+                cmd += f' --es {key} "{value}"'
+        
+        success, output = await run_command(cmd)
+        
+        if success:
+            return json.dumps({
+                "status": "success",
+                "message": f"Successfully launched intent: {intent_action}"
+            })
+        else:
+            return json.dumps({
+                "status": "error",
+                "message": f"Failed to launch intent: {output}"
+            })
+    except Exception as e:
+        logger.error(f"Error launching intent {intent_action}: {str(e)}")
+        return json.dumps({
+            "status": "error",
+            "message": f"Failed to launch intent: {str(e)}"
+        })

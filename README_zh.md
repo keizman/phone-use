@@ -364,6 +364,7 @@ async def create_contact(name: str, phone: str) -> str:
   - `name`: 联系人的全名
   - `phone`: 联系人的电话号码
 - **返回值：** 包含操作结果的JSON字符串
+- **位置：** 此函数位于 'contacts.py' 模块中，实现通过UI自动化创建联系人
 
 #### launch_app_activity
 ```python
@@ -374,6 +375,7 @@ async def launch_app_activity(package_name: str, activity_name: Optional[str] = 
   - `package_name`: 要启动的应用的包名
   - `activity_name`: 要启动的特定活动（可选）
 - **返回值：** 包含操作结果的JSON字符串
+- **位置：** 此函数位于 'apps.py' 模块中
 
 #### launch_intent
 ```python
@@ -385,6 +387,7 @@ async def launch_intent(intent_action: str, intent_type: Optional[str] = None, e
   - `intent_type`: 意图的MIME类型（可选）
   - `extras`: 要与意图一起传递的额外数据（可选）
 - **返回值：** 包含操作结果的JSON字符串
+- **位置：** 此函数位于 'apps.py' 模块中
 
 ## 📄 许可证
 

@@ -367,6 +367,7 @@ async def create_contact(name: str, phone: str) -> str:
   - `name`: The contact's full name
   - `phone`: The phone number for the contact
 - **Returns:** JSON string with operation result
+- **Location:** This function is found in the 'contacts.py' module and implements UI automation to create contacts
 
 #### launch_app_activity
 ```python
@@ -377,6 +378,7 @@ async def launch_app_activity(package_name: str, activity_name: Optional[str] = 
   - `package_name`: The package name of the app to launch
   - `activity_name`: The specific activity to launch (optional)
 - **Returns:** JSON string with operation result
+- **Location:** This function is found in the 'apps.py' module
 
 #### launch_intent
 ```python
@@ -388,6 +390,7 @@ async def launch_intent(intent_action: str, intent_type: Optional[str] = None, e
   - `intent_type`: The MIME type for the intent (optional)
   - `extras`: Extra data to pass with the intent (optional)
 - **Returns:** JSON string with operation result
+- **Location:** This function is found in the 'apps.py' module
 
 ## 📄 License
 
