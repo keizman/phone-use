@@ -466,14 +466,15 @@ async def analyze_screen(include_screenshot: bool = False, max_elements: int = 5
         })
 
 
-async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> str:
+
+async def interact_with_screen(action: str, params: Dict[str, Any]) -> str:
     """Execute screen interaction actions
     
     Unified interface for screen interactions including tapping, swiping, key pressing, text input, and element search.
     
     Args:
         action (str): Action type, one of:
-            - "tap": Tap screen at specified coordinates or on element with given text
+            - "tap": Tap screen at specified coordinates
             - "swipe": Swipe screen from one position to another
             - "key": Press a system key
             - "text": Input text
@@ -485,8 +486,6 @@ async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> st
             For "tap" action:
                 - x (int): X coordinate to tap
                 - y (int): Y coordinate to tap
-                - element_text (str): Text of element to tap (alternative to x,y coordinates)
-                - partial (bool, optional): Use partial matching when using element_text, defaults to True
             
             For "swipe" action:
                 - x1 (int): Start X coordinate
@@ -542,9 +541,6 @@ async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> st
         # Tap by coordinates
         result = await interact_with_screen("tap", {"x": 100, "y": 200})
         
-        # Tap by element text
-        result = await interact_with_screen("tap", {"element_text": "Login"})
-        
         # Swipe down
         result = await interact_with_screen("swipe", 
                                            {"x1": 500, "y1": 300, 
@@ -577,131 +573,64 @@ async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> st
                                             "direction": "down", 
                                             "max_swipes": 8})
     """
-    # Debug logging to help track issues
-    logger.debug(f"interact_with_screen called with action={action}, params type={type(params).__name__}")
-    if params is not None:
-        logger.debug(f"params content: {str(params)[:100]}{'...' if len(str(params)) > 100 else ''}")
-    
-    # Handle different types of params input to make function more robust
-    if params is None:
-        params = {}
-    elif isinstance(params, str):
-        # Try to parse JSON string
-        try:
-            params = json.loads(params)
-            if not isinstance(params, dict):
-                params = {"value": params}
-        except json.JSONDecodeError:
-            params = {"value": params}
-    elif not isinstance(params, dict):
-        # Handle other types by converting to a dictionary
-        try:
-            # Try to convert to dictionary if it's a mapping-like object
-            params = dict(params)
-        except (TypeError, ValueError):
-            # If that fails, create a dict with a default key
-            logger.error(f"params must be a dictionary, got {type(params).__name__}")
-            params = {"value": str(params)}
-    
-    # Create a copy to avoid modifying the original
-    params_copy = params.copy()
-    
-    # Ensure numeric parameters are properly converted
-    try:
-        # Convert integer parameters
-        for key in ['x', 'y', 'x1', 'y1', 'x2', 'y2', 'duration', 'timeout', 'max_swipes']:
-            if key in params_copy:
-                try:
-                    params_copy[key] = int(params_copy[key])
-                except (ValueError, TypeError):
-                    logger.warning(f"Could not convert '{key}' parameter to integer: {params_copy[key]}")
-                    if key in ['duration', 'timeout', 'max_swipes']:
-                        # Use reasonable defaults for these parameters
-                        params_copy[key] = 300 if key == 'duration' else 30 if key == 'timeout' else 5
-                    
-        # Convert float parameters
-        if 'interval' in params_copy:
-            try:
-                params_copy['interval'] = float(params_copy['interval'])
-            except (ValueError, TypeError):
-                logger.warning(f"Could not convert 'interval' parameter to float: {params_copy['interval']}")
-                params_copy['interval'] = 1.0  # Default interval
-    except Exception as e:
-        logger.error(f"Error converting parameter types: {str(e)}")
-        
     try:
         if action == "tap":
-            if "element_text" in params_copy:
-                element_result = await find_element_by_text(
-                    params_copy["element_text"], 
-                    params_copy.get("partial", True)
-                )
-                element_data = json.loads(element_result)
-                
-                if element_data.get("status") == "success" and element_data.get("elements"):
-                    element = UIElement(element_data["elements"][0])
-                    return await element.tap()
-                else:
-                    return json.dumps({
-                        "status": "error", 
-                        "message": f"Could not find element with text '{params_copy['element_text']}'"
-                    })
-            elif "x" in params_copy and "y" in params_copy:
-                return await tap_screen(params_copy["x"], params_copy["y"])
+            if "x" in params and "y" in params:
+                return await tap_screen(params["x"], params["y"])
             else:
                 return json.dumps({
                     "status": "error", 
-                    "message": "Missing required tap parameters (either element_text or x,y coordinates)"
-                })
+                    "message": "Missing required x and y coordinates for tap action"
+                }, ensure_ascii=False)
                 
         elif action == "swipe":
-            if all(k in params_copy for k in ["x1", "y1", "x2", "y2"]):
-                duration = params_copy.get("duration", 300)
+            if all(k in params for k in ["x1", "y1", "x2", "y2"]):
+                duration = params.get("duration", 300)
                 return await swipe_screen(
-                    params_copy["x1"], params_copy["y1"], 
-                    params_copy["x2"], params_copy["y2"], 
+                    params["x1"], params["y1"], 
+                    params["x2"], params["y2"], 
                     duration
                 )
             else:
                 return json.dumps({
                     "status": "error", 
                     "message": "Missing coordinates required for swipe"
-                })
+                }, ensure_ascii=False)
                 
         elif action == "key":
-            if "keycode" in params_copy:
-                return await press_key(params_copy["keycode"])
+            if "keycode" in params:
+                return await press_key(params["keycode"])
             else:
                 return json.dumps({
                     "status": "error", 
                     "message": "Missing key parameter"
-                })
+                }, ensure_ascii=False)
                 
         elif action == "text":
-            if "content" in params_copy:
-                return await input_text(str(params_copy["content"]))
+            if "content" in params:
+                return await input_text(params["content"])
             else:
                 return json.dumps({
                     "status": "error", 
                     "message": "Missing text content parameter"
-                })
+                }, ensure_ascii=False)
                 
         elif action == "find":
-            method = params_copy.get("method", "text")
-            value = params_copy.get("value", "")
+            method = params.get("method", "text")
+            value = params.get("value", "")
             
             if not value and method != "clickable":
                 return json.dumps({
                     "status": "error", 
                     "message": "Finding element requires a search value"
-                })
+                }, ensure_ascii=False)
                 
             if method == "text":
-                return await find_element_by_text(value, params_copy.get("partial", True))
+                return await find_element_by_text(value, params.get("partial", True))
             elif method == "id":
                 return await find_element_by_id(value)
             elif method == "content_desc":
-                return await find_element_by_content_desc(value, params_copy.get("partial", True))
+                return await find_element_by_content_desc(value, params.get("partial", True))
             elif method == "class":
                 return await find_element_by_class(value)
             elif method == "clickable":
@@ -710,33 +639,33 @@ async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> st
                 return json.dumps({
                     "status": "error", 
                     "message": f"Unsupported search method: {method}"
-                })
+                }, ensure_ascii=False)
                 
         elif action == "wait":
-            method = params_copy.get("method", "text")
-            value = params_copy.get("value", "")
-            timeout = params_copy.get("timeout", 30)
-            interval = params_copy.get("interval", 1.0)
+            method = params.get("method", "text")
+            value = params.get("value", "")
+            timeout = params.get("timeout", 30)
+            interval = params.get("interval", 1.0)
             
             if not value:
                 return json.dumps({
                     "status": "error", 
                     "message": "Waiting for element requires a search value"
-                })
+                }, ensure_ascii=False)
                 
             return await wait_for_element(method, value, timeout, interval)
             
         elif action == "scroll":
-            method = params_copy.get("method", "text")
-            value = params_copy.get("value", "")
-            direction = params_copy.get("direction", "down")
-            max_swipes = params_copy.get("max_swipes", 5)
+            method = params.get("method", "text")
+            value = params.get("value", "")
+            direction = params.get("direction", "down")
+            max_swipes = params.get("max_swipes", 5)
             
             if not value:
                 return json.dumps({
                     "status": "error", 
                     "message": "Scrolling to find requires a search value"
-                })
+                }, ensure_ascii=False)
                 
             return await scroll_to_element(method, value, direction, max_swipes)
             
@@ -744,7 +673,7 @@ async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> st
             return json.dumps({
                 "status": "error", 
                 "message": f"Unsupported interaction action: {action}"
-            })
+            }, ensure_ascii=False)
             
     except Exception as e:
         logger.error(f"Error executing interaction action {action}: {str(e)}")
