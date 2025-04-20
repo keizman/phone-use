@@ -61,12 +61,12 @@ async def check_device_connection() -> str:
         success, output = await run_command("adb devices")
 
         if success:
-            # 正确检测设备连接的逻辑
+            # Correct logic for detecting device connection
             lines = output.strip().split("\n")
 
-            # 检查是否有除了"List of devices attached"之外的行，且有包含"device"状态的设备
+            # Check if there are lines besides "List of devices attached" and if there are devices with "device" status
             device_connected = False
-            for line in lines[1:]:  # 跳过第一行"List of devices attached"
+            for line in lines[1:]:  # Skip the first line "List of devices attached"
                 if line.strip() and "\tdevice" in line:
                     device_connected = True
                     break

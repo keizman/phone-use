@@ -18,11 +18,11 @@ from . import ui_enhanced
 from . import ui_monitor
 
 from .call import call_number, end_call, receive_incoming_call, check_device_connection
-from .messaging import send_text_message, receive_text_messages
+from .messaging import send_text_message, receive_text_messages, get_sent_messages
 from .media import take_screenshot, start_screen_recording, play_media
-from .apps import open_app, set_alarm, list_installed_apps, terminate_app
-from .contacts import get_contacts
-from .system import get_current_window, get_app_shortcuts, launch_activity
+from .apps import set_alarm, list_installed_apps, terminate_app
+from .contacts import get_contacts, create_contact
+from .system import get_current_window, get_app_shortcuts, launch_app_activity
 
 # Basic interactions
 from .interactions import tap_screen, swipe_screen, press_key, input_text, open_url
@@ -59,17 +59,18 @@ __all__ = [
     "check_device_connection",
     "send_text_message",
     "receive_text_messages",
+    "get_sent_messages",
     "take_screenshot",
     "start_screen_recording",
     "play_media",
-    "open_app",
     "set_alarm",
     "list_installed_apps",
     "terminate_app",
     "get_contacts",
+    "create_contact",
     "get_current_window",
     "get_app_shortcuts",
-    "launch_activity",
+    "launch_app_activity",
     "tap_screen",
     "swipe_screen",
     "press_key",

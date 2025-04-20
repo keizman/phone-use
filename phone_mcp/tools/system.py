@@ -157,19 +157,30 @@ async def get_current_window():
         return f"Error retrieving window information: {str(e)}"
 
 
-async def launch_activity(package_component=None, action=None, extra_args=None):
-    """Launch a specific activity with custom action and component.
+async def launch_app_activity(package_component=None, action=None, extra_args=None):
+    """Launch an app by starting a specific activity with custom action and component.
 
-    Provides advanced app launching capability by specifying exact activity components
-    and intent actions, similar to using Android's am start command directly.
+    This function starts an application by launching a specific activity component.
+    It effectively launches the app and can be used in conjunction with get_app_shortcuts 
+    to discover available activities, but does not require it as a prerequisite.
 
     Args:
         package_component (str): App component in format "package/activity" (e.g. "com.example.app/.MainActivity")
+                               This is the primary way to specify which app and activity to launch
         action (str, optional): Intent action to use (e.g. "android.intent.action.VIEW")
-        extra_args (str, optional): Additional intent arguments to pass
+        extra_args (str, optional): Additional intent arguments to pass (e.g. "-d 'content://contacts/people/'")
 
     Returns:
-        str: Success message or error details
+        str: Success message with the launched component name, or error details if launch failed
+
+    Example:
+        To launch the main activity of an app:
+        launch_app_activity("com.example.app/.MainActivity")
+        
+        To launch a specific activity with an action and data:
+        launch_app_activity("com.android.browser/.BrowserActivity", 
+                         action="android.intent.action.VIEW", 
+                         extra_args="-d 'https://example.com'")
     """
     # Check for connected device
     from ..core import check_device_connection

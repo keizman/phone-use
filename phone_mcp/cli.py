@@ -13,11 +13,11 @@ import time
 from typing import Dict, Any, Optional
 from .core import check_device_connection
 from .tools.call import call_number, end_call, receive_incoming_call
-from .tools.messaging import send_text_message, receive_text_messages, get_raw_messages
+from .tools.messaging import send_text_message, receive_text_messages, get_sent_messages
 from .tools.media import take_screenshot, start_screen_recording, play_media
-from .tools.apps import open_app, set_alarm, list_installed_apps, terminate_app
-from .tools.contacts import get_contacts
-from .tools.system import get_current_window, get_app_shortcuts, launch_activity
+from .tools.apps import  set_alarm, list_installed_apps, terminate_app
+from .tools.contacts import get_contacts, create_contact
+from .tools.system import get_current_window, get_app_shortcuts, launch_app_activity
 from .tools.interactions import (
     tap_screen,
     swipe_screen,
@@ -290,9 +290,9 @@ async def send_sms(args):
             print("❌ Failed to analyze screen for buttons")
             return
         
-        # Look for the send button (typically appears in the bottom section with text like "Send", "发送", etc.)
+        # Look for the send button (typically appears in the bottom section with text like "Send", "OK", etc.)
         send_button = None
-        send_keywords = ["send", "发送", "发信息", "确定", "ok"]
+        send_keywords = ["send", "ok", "confirm", "submit"]
         
         if analysis_data.get("status") == "success":
             # First check notable clickables
@@ -474,8 +474,8 @@ async def send_sms(args):
 
 
 async def check_messages(args):
-    """Check recent text messages."""
-    result = await get_raw_messages(limit=args.limit)
+    """Check received text messages."""
+    result = await receive_text_messages(limit=args.limit)
     print(format_json_output(result))
 
 
@@ -487,21 +487,36 @@ async def screenshot(args):
 
 async def record(args):
     """Record screen."""
-    result = await start_screen_recording(args.duration)
-    print(format_json_output(result))
+    try:
+        result = await start_screen_recording(args.duration)
+        print(format_json_output(result))
+    except RuntimeError as e:
+        if "Event loop is closed" in str(e):
+            # Prevent event loop closing issue
+            import threading
+            from ..tools.media import start_screen_recording as sync_start_recording
+            
+            def run_in_thread():
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(sync_start_recording(args.duration))
+                print(format_json_output(result))
+                loop.close()
+            
+            thread = threading.Thread(target=run_in_thread)
+            thread.daemon = True
+            thread.start()
+            thread.join()
+        else:
+            # Other runtime errors
+            raise
 
 
 async def media_control(args):
     """Control media playback."""
     result = await play_media()
     print(format_json_output(result))
-
-
-async def launch_app(args):
-    """Launch an app."""
-    result = await open_app(args.name)
-    print(format_json_output(result))
-
 
 async def close_app(args):
     """Force stop an app."""
@@ -526,16 +541,16 @@ async def check_contacts(args):
     result = await get_contacts(limit=args.limit)
     
     try:
-        # 尝试解析为JSON
+        # Try to parse as JSON
         try:
             contacts = json.loads(result)
-            # 如果返回的是错误消息字符串，JSON解析会失败，会进入except部分
+            # If it's an error message string, JSON parsing will fail and go to the except block
             if not isinstance(contacts, list):
-                # 如果返回的不是列表，当作错误处理
+                # If the result is not a list, handle as an error
                 print(format_json_output(result))
                 return
         except json.JSONDecodeError:
-            # 如果不是JSON，认为是原始ADB输出格式或错误信息，直接处理
+            # If not JSON, treat as raw ADB output format or error message
             if "Row:" in result:
                 rows = result.strip().split("Row:")
                 contacts = []
@@ -543,105 +558,78 @@ async def check_contacts(args):
                     if not row.strip():
                         continue
                     
-                    # 将每一行转换为字典
+                    # Convert each row to a dictionary
                     contact = {}
                     parts = row.split(", ")
                     for part in parts:
                         if "=" in part:
                             key, value = part.split("=", 1)
-                            # 只添加非NULL值
+                            # Only add non-NULL values
                             if value and value != "NULL" and value != "null":
                                 contact[key.strip()] = value.strip()
                     
                     if contact:
                         contacts.append(contact)
             else:
-                # 如果不是Row格式，可能是错误消息
+                # If not in Row format, might be an error message
                 print(result)
                 return
         
-        # 处理联系人数据
-        valid_contacts = []
-        for contact in contacts:
-            # 提取名称
-            name = contact.get("name", contact.get("display_name", "Unknown"))
-            
-            # 收集所有可能是电话号码的字段
-            phone_values = []
-            for key, value in contact.items():
-                # 跳过明显不是电话号码的字段
-                if key in ["name", "display_name", "id", "_id", "rowid", "starred", "times_contacted", "send_to_voicemail"]:
-                    continue
-                
-                # 如果字段名称暗示这是电话号码，或者值包含数字
-                if "number" in key.lower() or "phone" in key.lower() or (isinstance(value, str) and any(c.isdigit() for c in value)):
-                    # 确保值是字符串
-                    if isinstance(value, str):
-                        # 标准化电话号码格式
-                        normalized = ''.join(c for c in value if c.isdigit() or c == '+')
-                        # 验证电话号码格式
-                        if normalized and _is_valid_phone_number(normalized) and normalized not in phone_values:
-                            phone_values.append(normalized)
-                    elif isinstance(value, list):
-                        # 如果值是列表，只添加其中的字符串项
-                        for item in value:
-                            if isinstance(item, str):
-                                normalized = ''.join(c for c in item if c.isdigit() or c == '+')
-                                if normalized and _is_valid_phone_number(normalized) and normalized not in phone_values:
-                                    phone_values.append(normalized)
-                    else:
-                        # 其他类型转为字符串
-                        try:
-                            normalized = ''.join(c for c in str(value) if c.isdigit() or c == '+')
-                            if normalized and _is_valid_phone_number(normalized) and normalized not in phone_values:
-                                phone_values.append(normalized)
-                        except:
-                            pass
-            
-            # 如果有电话号码，添加到有效联系人列表
-            if phone_values:
-                valid_contacts.append({
-                    "name": name,
-                    "phone_values": phone_values,
-                    "original": contact  # 保存原始过滤后的数据，以防需要更多字段
-                })
-        
-        total_count = len(valid_contacts)
-        
-        # 检查是否有联系人
+        # Check if there are any contacts
         if total_count == 0:
-            print("未找到联系人数据")
+            print("No contacts found")
             return
         
-        # 打印联系人信息
-        print(f"找到 {total_count} 个联系人:")
+        # Print contact information
+        print(f"Found {total_count} contacts:")
         
-        # 检查是否请求JSON输出
+        # Check if JSON output is requested
         if hasattr(args, 'json') and args.json:
-            # 显示JSON格式
-            print(json.dumps(valid_contacts, indent=2, ensure_ascii=False))
+            # Display JSON format
+            print(json.dumps(contacts, indent=2, ensure_ascii=False))
         else:
-            # 每行输出一个联系人
-            for contact in valid_contacts[:args.limit]:
+            # Output each contact on a separate line
+            for contact in contacts[:args.limit]:
                 name = contact["name"]
                 
-                # 确保所有电话号码都是字符串类型
+                # Ensure all phone numbers are string type
                 phone_values = []
-                for value in contact["phone_values"]:
-                    if isinstance(value, str):
-                        phone_values.append(value)
-                    else:
-                        try:
-                            phone_values.append(str(value))
-                        except:
-                            continue
+                for key, value in contact.items():
+                    # Skip fields that definitely aren't phone numbers
+                    if key in ["name", "display_name", "id", "_id", "rowid", "starred", "times_contacted", "send_to_voicemail"]:
+                        continue
+                    
+                    # If the field name implies this is a phone number, or the value contains digits
+                    if "number" in key.lower() or "phone" in key.lower() or (isinstance(value, str) and any(c.isdigit() for c in value)):
+                        # Ensure value is a string
+                        if isinstance(value, str):
+                            # Standardize phone number format
+                            normalized = ''.join(c for c in value if c.isdigit() or c == '+')
+                            # Validate phone number format
+                            if normalized and _is_valid_phone_number(normalized) and normalized not in phone_values:
+                                phone_values.append(normalized)
+                        elif isinstance(value, list):
+                            # If value is a list, only add string items from the list
+                            for item in value:
+                                if isinstance(item, str):
+                                    normalized = ''.join(c for c in item if c.isdigit() or c == '+')
+                                    if normalized and _is_valid_phone_number(normalized) and normalized not in phone_values:
+                                        phone_values.append(normalized)
+                        else:
+                            # Other types converted to string
+                            try:
+                                normalized = ''.join(c for c in str(value) if c.isdigit() or c == '+')
+                                if normalized and _is_valid_phone_number(normalized) and normalized not in phone_values:
+                                    phone_values.append(normalized)
+                            except:
+                                pass
                 
                 if phone_values:
                     phone_display = ", ".join(phone_values)
-                    # 每个联系人输出一行
+                    # Output each contact on a separate line
                     print(f"{name}: {phone_display}")
                 else:
-                    # 如果没有有效的电话号码，尝试使用原始数据中的任何可能是电话号码的字段
+                    # If there are no valid phone numbers, try using any possibly phone number field from the original data
                     original = contact.get("original", {})
                     for key, value in original.items():
                         if "number" in key.lower() or "phone" in key.lower():
@@ -649,8 +637,8 @@ async def check_contacts(args):
                                 print(f"{name}: {value}")
                                 break
     except Exception as e:
-        # 解析失败时，回退到原始输出
-        logger.error(f"解析联系人时出错: {str(e)}")
+        # Fall back to original output if parsing fails
+        logger.error(f"Error parsing contacts: {str(e)}")
         print(format_json_output(result))
 
 
@@ -667,15 +655,29 @@ async def check_shortcuts(args):
 
 
 async def launch(args):
-    """Launch a specific activity with custom action and component."""
-    result = await launch_activity(package_component=args.component, action=args.action, extra_args=args.extras)
+    """Launch an app by specifying a specific activity component.
+    
+    This command starts an application by launching its activity component.
+    It provides more control than the 'app' command by allowing you to specify 
+    exact activities and additional parameters like intent actions and extras.
+    
+    Can be used with 'shortcuts' command to discover available app activities.
+    """
+    result = await launch_app_activity(package_component=args.component, action=args.action, extra_args=args.extras)
     print(format_json_output(result))
 
 
-async def receive_sms(args):
-    """Check recent text messages (alias for 'messages')."""
-    limit = args.limit if hasattr(args, 'limit') else 5
-    result = await get_raw_messages(limit=limit)
+async def get_sent_messages_cmd(args):
+    """Get messages that were sent from this device.
+    
+    Retrieves recently sent SMS messages from the device's sent folder,
+    showing recipient number, content and timestamp.
+    """
+    if hasattr(args, 'limit') and args.limit is not None:
+        limit = args.limit
+    else:
+        limit = 10  # Default limit value
+    result = await get_sent_messages(limit=limit)
     print(format_json_output(result))
 
 
@@ -774,100 +776,101 @@ async def get_phone_by_poi(args):
 async def list_apps(args):
     """List installed applications."""
     try:
-        # 设置查询参数
-        only_system = args.system
-        only_third_party = args.third_party
+        # Set query parameters
+        only_system = args.system if hasattr(args, 'system') else False
+        only_third_party = args.third_party if hasattr(args, 'third_party') else False
         use_basic_mode = not (hasattr(args, 'detailed') and args.detailed)
         page = max(1, args.page) if hasattr(args, 'page') else 1
         page_size = max(1, args.page_size) if hasattr(args, 'page_size') else 10
         use_json = hasattr(args, 'json') and args.json
         
-        if args.verbose:
+        if hasattr(args, 'verbose') and args.verbose:
             logger.debug(f"Listing apps with system: {only_system}, third_party: {only_third_party}, basic: {use_basic_mode}")
         
         print("Fetching application list...")
         
-        # 获取应用列表
+        # Get application list - ensure only passing parameters supported by the function
         result = await list_installed_apps(
             only_system=only_system,
             only_third_party=only_third_party,
-            limit=args.limit,
-            basic=use_basic_mode
+            basic=use_basic_mode,
+            page=page,
+            page_size=page_size
         )
         
-        # 解析结果
+        # Parse the result
         if not result:
             print("❌ No response from device when listing applications")
             return
         
         try:
-            # 解析JSON结果
+            # Parse JSON result
             data = json.loads(result) if isinstance(result, str) else result
             
-            # 提取应用列表
+            # Extract application list
             if isinstance(data, dict) and data.get("status") == "success" and "apps" in data:
                 apps_list = data["apps"]
+                total_count = data.get("total_count", len(apps_list))
+                total_pages = data.get("total_pages", 1)
+                current_page = data.get("current_page", 1)
             elif isinstance(data, list):
                 apps_list = data
+                total_count = len(apps_list)
+                total_pages = (total_count + page_size - 1) // page_size
+                current_page = page
             else:
-                # 非标准响应格式
+                # Non-standard response format
                 print(format_json_output(result))
-                if args.verbose and isinstance(data, dict):
+                if hasattr(args, 'verbose') and args.verbose and isinstance(data, dict):
                     logger.debug(f"Non-standard response structure. Keys: {list(data.keys())}")
                 return
             
-            # 检查是否有应用
+            # Check if there are any applications
             if not apps_list:
                 print("No applications found. Try different filtering options or check device connection.")
                 return
             
-            # 计算分页
-            total_apps = len(apps_list)
-            total_pages = (total_apps + page_size - 1) // page_size
-            page = min(page, total_pages)  # 确保页码有效
+            # Handle--limit parameter - only local filtering, does not affect API call
+            if hasattr(args, 'limit') and args.limit:
+                apps_list = apps_list[:args.limit]
+                
+            # Display the result
+            print(f"Found {total_count} applications (showing page {current_page}/{total_pages})")
             
-            # 获取当前页的应用
-            start_idx = (page - 1) * page_size
-            end_idx = min(start_idx + page_size, total_apps)
-            current_page_apps = apps_list[start_idx:end_idx]
-            
-            # 显示结果
-            print(f"Found {total_apps} applications (showing page {page}/{total_pages})")
-            
-            # JSON格式输出
+            # JSON format output
             if use_json:
-                print(json.dumps(current_page_apps, indent=2, ensure_ascii=False))
+                print(json.dumps(apps_list, indent=2, ensure_ascii=False))
                 if total_pages > 1:
-                    print(f"\nPage {page}/{total_pages}. Use --page parameter to view other pages.")
+                    print(f"\nPage {current_page}/{total_pages}. Use --page parameter to view other pages.")
                 return
             
-            # 标准输出格式
-            for i, app in enumerate(current_page_apps, start_idx + 1):
+            # Standard output format
+            for i, app in enumerate(apps_list, (current_page - 1) * page_size + 1):
                 if not isinstance(app, dict):
                     continue
                 
                 app_name = app.get("app_name", "Unknown")
                 package_name = app.get("package_name", "")
-                app_type = "System" if app.get("is_system", False) else "User"
+                app_type = "System" if app.get("system_app", False) else "User"
                 version_info = f" v{app.get('version_name', '')}" if app.get('version_name') else ""
                 
                 print(f"{i}. {app_name}{version_info} ({package_name}) - {app_type}")
             
-            # 显示分页导航提示
+            # Display pagination navigation prompt
             if total_pages > 1:
-                print(f"\nPage {page}/{total_pages}. Use --page to view other pages.")
-                if page < total_pages:
-                    print(f"For next page: --page {page + 1}")
-                if page > 1:
-                    print(f"For previous page: --page {page - 1}")
+                print(f"\nPage {current_page}/{total_pages}. Use --page to view other pages.")
+                if current_page < total_pages:
+                    print(f"For next page: --page {current_page + 1}")
+                if current_page > 1:
+                    print(f"For previous page: --page {current_page - 1}")
         
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse apps list: {e if args.verbose else ''}")
+            print(f"❌ Failed to parse apps list: {e if hasattr(args, 'verbose') and args.verbose else ''}")
     
     except Exception as e:
         logger.error(f"Error listing applications: {str(e)}")
         print(f"❌ Failed to list applications: {str(e)}")
-        if args.debug or args.verbose:
+        if hasattr(args, 'debug') and args.debug or hasattr(args, 'verbose') and args.verbose:
             import traceback
             traceback.print_exc()
 
@@ -923,15 +926,43 @@ async def screen_interact(args):
                 else:
                     params[key] = value
     
+    # Explicitly validate keys that must be numbers to avoid issues
+    number_keys = ['x', 'y', 'x1', 'y1', 'x2', 'y2', 'duration', 'timeout', 'max_swipes']
+    for key in number_keys:
+        if key in params and not isinstance(params[key], (int, float)):
+            try:
+                params[key] = int(str(params[key]).strip())
+            except (ValueError, TypeError):
+                logger.warning(f"Parameter '{key}' must be a number. Using default.")
+                # Remove invalid values rather than keeping them
+                if key in params:
+                    del params[key]
+    
+    # Handle float parameters
+    float_keys = ['interval']
+    for key in float_keys:
+        if key in params and not isinstance(params[key], float):
+            try:
+                params[key] = float(str(params[key]).strip())
+            except (ValueError, TypeError):
+                logger.warning(f"Parameter '{key}' must be a float. Setting to default 1.0")
+                params[key] = 1.0
+    
     # Log what we're about to do
-    if args.verbose:
+    if hasattr(args, 'verbose') and args.verbose:
         logger.info(f"Executing screen interaction: {args.action} with parameters: {params}")
     
     # Execute the interaction
-    result = await interact_with_screen(args.action, params)
+    try:
+        from phone_mcp.tools.screen_interface import interact_with_screen
+        result = await interact_with_screen(args.action, params)
+    except Exception as e:
+        logger.error(f"Error executing screen interaction: {str(e)}")
+        print(f"ERROR: Screen interaction failed: {str(e)}")
+        return
     
     # Debug output if requested
-    if args.debug:
+    if hasattr(args, 'debug') and args.debug:
         debug_json_response(result, f"{args.action} result:")
     
     # Parse and provide more detailed output
@@ -943,7 +974,7 @@ async def screen_interact(args):
             element_count = result_data.get("count", 0)
             if element_count > 0:
                 elements = result_data.get("elements", [])
-                print(f"✅ Found {element_count} element(s) matching {params.get('value', '')}")
+                print(f"SUCCESS: Found {element_count} element(s) matching {params.get('value', '')}")
                 
                 # Show detailed info for found elements (limited to prevent excessive output)
                 for i, element in enumerate(elements[:3]):
@@ -961,16 +992,19 @@ async def screen_interact(args):
                 if element_count > 3:
                     print(f"  ... and {element_count - 3} more element(s)")
             else:
-                print(f"❌ No elements found matching {params.get('value', '')}")
+                print(f"ERROR: No elements found matching {params.get('value', '')}")
         
         elif args.action == "tap" and result_data.get("status") == "success":
-            print(f"✅ Tapped screen at coordinates ({params.get('x', 0)}, {params.get('y', 0)})")
+            if "element_text" in params:
+                print(f"SUCCESS: Tapped element with text: {params['element_text']}")
+            else:
+                print(f"SUCCESS: Tapped screen at coordinates ({params.get('x', 0)}, {params.get('y', 0)})")
         
         elif args.action == "swipe" and result_data.get("status") == "success":
-            print(f"✅ Swiped from ({params.get('x1', 0)}, {params.get('y1', 0)}) to ({params.get('x2', 0)}, {params.get('y2', 0)})")
+            print(f"SUCCESS: Swiped from ({params.get('x1', 0)}, {params.get('y1', 0)}) to ({params.get('x2', 0)}, {params.get('y2', 0)})")
         
         elif args.action == "scroll" and result_data.get("status") == "success":
-            print(f"✅ Found element '{params.get('value', '')}' after scrolling {result_data.get('swipes_performed', 0)} times")
+            print(f"SUCCESS: Found element '{params.get('value', '')}' after scrolling {result_data.get('swipes_performed', 0)} times")
             if result_data.get("element"):
                 elem = result_data.get("element", {})
                 if "text" in elem:
@@ -984,6 +1018,10 @@ async def screen_interact(args):
     
     except json.JSONDecodeError:
         # If not valid JSON, print the raw result
+        print(result)
+    except Exception as e:
+        logger.error(f"Error processing result: {str(e)}")
+        print(f"ERROR: Failed to process result: {str(e)}")
         print(result)
 
 
@@ -1034,38 +1072,38 @@ def debug_json_response(response: str, context: str = "") -> None:
 
 
 def _is_valid_phone_number(number: str) -> bool:
-    """验证电话号码格式是否有效
+    """Validate phone number format is valid
     
     Args:
-        number: 标准化后的电话号码（只包含数字和加号）
+        number: Standardized phone number (only contains digits and plus sign)
         
     Returns:
-        bool: 如果电话号码格式有效返回True，否则返回False
+        bool: If phone number format is valid return True, otherwise return False
     """
-    # 移除所有非数字字符（保留加号）
+    # Remove all non-digit characters (keep plus sign)
     clean_number = ''.join(c for c in number if c.isdigit() or c == '+')
     
-    # 检查长度
+    # Check length
     if len(clean_number) < 7 or len(clean_number) > 15:
         return False
         
-    # 检查是否以加号开头（国际号码）
+    # Check if starts with plus sign (international number)
     if clean_number.startswith('+'):
-        # 国际号码应该以国家代码开头
+        # International number should start with country code
         if not clean_number[1:].isdigit():
             return False
-        # 国际号码长度应该在8-15位之间
+        # International number length should be between 8-15 digits
         if len(clean_number) < 8 or len(clean_number) > 15:
             return False
     else:
-        # 本地号码应该全是数字
+        # Local number should be all digits
         if not clean_number.isdigit():
             return False
-        # 本地号码长度应该在7-11位之间
+        # Local number length should be between 7-11 digits
         if len(clean_number) < 7 or len(clean_number) > 11:
             return False
             
-    # 检查数字是否合理（避免全是相同数字或明显错误的号码）
+    # Check if digits are reasonable (avoid all same digits or obviously incorrect numbers)
     if len(set(clean_number.lstrip('+'))) < 3:
         return False
         
@@ -1082,7 +1120,7 @@ async def monitor_ui(args):
     """Monitor UI for changes."""
     from .tools.ui_monitor import mcp_monitor_ui_changes
     
-    # 将命令行参数映射到函数参数
+    # Map command line arguments to function parameters
     result = await mcp_monitor_ui_changes(
         interval_seconds=args.interval,
         max_duration_seconds=args.duration,
@@ -1094,6 +1132,150 @@ async def monitor_ui(args):
     )
     
     print(format_json_output(result, args.raw if hasattr(args, 'raw') else False))
+
+
+async def create_new_contact(args):
+    """Create a new contact on the phone.
+    
+    Adds a new contact with the specified name and phone number to the device.
+    Optionally, an email address can also be provided.
+    """
+    result = await create_contact(name=args.name, phone_number=args.phone, email=args.email)
+    print(format_json_output(result))
+
+
+async def app(args):
+    """Launch an app by name.
+    
+    This command launches an application by its friendly name or package name.
+    It attempts to find and launch the most likely matching app if the exact name
+    is not provided.
+    """
+    try:
+        from .tools.screen_interface import launch_app_activity
+        from .core import run_command
+        
+        # First try to match app name
+        app_name = args.name
+        
+        # Special app handling
+        common_apps = {
+            "camera": "com.android.camera", 
+            "camera2": "com.android.camera2",
+            "phone": "com.android.dialer",
+            "dialer": "com.android.dialer",
+            "contacts": "com.android.contacts",
+            "settings": "com.android.settings",
+            "gallery": "com.android.gallery3d",
+            "photos": "com.google.android.apps.photos",
+            "messaging": "com.android.messaging",
+            "calculator": "com.android.calculator2",
+            "chrome": "com.android.chrome",
+            "browser": "com.android.browser",
+            "maps": "com.google.android.apps.maps",
+            "youtube": "com.google.android.youtube",
+            "gmail": "com.google.android.gm",
+            "play store": "com.android.vending"
+        }
+        
+        # Check if matches common apps
+        lower_app_name = app_name.lower()
+        if lower_app_name in common_apps:
+            package_name = common_apps[lower_app_name]
+            print(f"Launching {app_name} (common app: {package_name})...")
+            result = await launch_app_activity(package_name)
+            print(format_json_output(result))
+            return
+        
+        # Check if package name is directly provided
+        if "." in app_name and not " " in app_name:
+            # Looks like a package name, directly try to start
+            result = await launch_app_activity(app_name)
+            print(format_json_output(result))
+            return
+            
+        # Get installed app list
+        apps_result = await list_installed_apps(basic=True)
+        
+        try:
+            data = json.loads(apps_result)
+            apps_list = data.get("apps", []) if isinstance(data, dict) else data
+            
+            # Match app name
+            match_app = None
+            match_score = 0
+            
+            for app in apps_list:
+                current_app_name = app.get("app_name", "").lower()
+                current_package = app.get("package_name", "").lower()
+                search_name = app_name.lower()
+                
+                # Full name or package name match
+                if current_app_name == search_name or current_package == search_name:
+                    match_app = app
+                    break
+                    
+                # Partial name match
+                if search_name in current_app_name:
+                    # Calculate match score (0-100)
+                    score = 100 * len(search_name) / len(current_app_name)
+                    if score > match_score:
+                        match_score = score
+                        match_app = app
+                
+                # Package name contains search term
+                if search_name in current_package:
+                    # Calculate match score (0-80), lower weight for package name match
+                    score = 80 * len(search_name) / len(current_package)
+                    if score > match_score:
+                        match_score = score
+                        match_app = app
+            
+            # If a matching app is found
+            if match_app:
+                package_name = match_app.get("package_name", "")
+                app_name = match_app.get("app_name", "")
+                
+                if package_name:
+                    print(f"Launching {app_name} ({package_name})...")
+                    result = await launch_app_activity(package_name)
+                    print(format_json_output(result))
+                else:
+                    print(f"❌ Found matching app but couldn't determine package name")
+            else:
+                # Try MIUI or other manufacturer's camera app package name
+                if lower_app_name in ["camera"]:
+                    alt_camera_packages = [
+                        "com.android.camera",
+                        "com.android.camera2",
+                        "com.miui.camera",
+                        "com.sec.android.app.camera",
+                        "com.huawei.camera",
+                        "com.oneplus.camera",
+                        "com.oppo.camera",
+                        "com.vivo.camera"
+                    ]
+                    
+                    for camera_pkg in alt_camera_packages:
+                        cmd = f"adb shell pm list packages | grep {camera_pkg}"
+                        success, output = await run_command(cmd)
+                        if success and camera_pkg in output:
+                            print(f"Launching Camera ({camera_pkg})...")
+                            result = await launch_app_activity(camera_pkg)
+                            print(format_json_output(result))
+                            return
+                
+                print(f"❌ Could not find an app matching '{args.name}'")
+                
+        except json.JSONDecodeError:
+            print(f"❌ Failed to parse application list data")
+            
+    except Exception as e:
+        logger.error(f"Error launching app: {str(e)}")
+        print(f"❌ Failed to launch app: {str(e)}")
+        if hasattr(args, 'debug') and args.debug or hasattr(args, 'verbose') and args.verbose:
+            import traceback
+            traceback.print_exc()
 
 
 def main():
@@ -1127,12 +1309,22 @@ def main():
     check_messages_parser = subparsers.add_parser("messages", help="Check recent text messages")
     check_messages_parser.add_argument("--limit", type=int, default=5, help="Number of messages to retrieve")
     
+    # Get sent messages command
+    sent_messages_parser = subparsers.add_parser("sent-messages", help="Get recently sent text messages")
+    sent_messages_parser.add_argument("--limit", type=int, default=10, help="Number of sent messages to retrieve")
+    
     # Contacts command
     contacts_parser = subparsers.add_parser("contacts", help="Retrieve contacts from the phone")
     contacts_parser.add_argument("--limit", type=int, default=20, help="Number of contacts to retrieve")
     contacts_parser.add_argument("--json", "-j", action="store_true", help="Show contacts in JSON format instead of default compact format")
     contacts_parser.add_argument("--compact", "-c", action="store_true", help="Show contacts in compact one-line format (default behavior)")
     contacts_parser.add_argument("--oneline", "-o", action="store_true", help="Alias for --compact (default behavior)")
+    
+    # Add contact command
+    add_contact_parser = subparsers.add_parser("add-contact", help="Create a new contact on the phone")
+    add_contact_parser.add_argument("name", help="Contact's full name")
+    add_contact_parser.add_argument("phone", help="Contact's phone number")
+    add_contact_parser.add_argument("--email", help="Contact's email address (optional)")
     
     # Window information command
     subparsers.add_parser("window", help="Get current window information")
@@ -1241,13 +1433,13 @@ def main():
         "check": check_device,
         "send-sms": send_sms,
         "messages": check_messages,
+        "sent-messages": get_sent_messages_cmd,
         
         # Contact/app management functions
         "contacts": check_contacts,
         "window": check_window,
         "shortcuts": check_shortcuts,
         "launch": launch,
-        "app": launch_app,
         "close-app": close_app,
         "list-apps": list_apps,
         "alarm": alarm,
@@ -1270,6 +1462,9 @@ def main():
         
         # UI monitoring command
         "monitor-ui": monitor_ui,
+        
+        # New command
+        "add-contact": create_new_contact,
     }
     
     # Check if command exists

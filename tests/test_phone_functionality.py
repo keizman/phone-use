@@ -94,7 +94,7 @@ class TestPhoneFunctionality:
             mock_call.return_value = (True, "Success")
 
             # 执行被测试的函数
-            phone_number = "13800138000"
+            phone_number = "10086"
             result = await call_number(phone_number)
 
             # 验证结果
@@ -113,7 +113,7 @@ class TestPhoneFunctionality:
             mock_call.return_value = (False, "Failed to execute command")
 
             # 执行被测试的函数
-            result = await call_number("13800138000")
+            result = await call_number("10086")
 
             # 验证结果
             assert "Failed to initiate call" in result
@@ -171,7 +171,7 @@ class TestPhoneFunctionality:
             # 模拟sleep函数，避免实际等待
             with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
                 # 执行被测试的函数
-                phone_number = "13800138000"
+                phone_number = "10086"
                 message = "测试短信"
                 result = await send_text_message(phone_number, message)
 
@@ -196,7 +196,7 @@ class TestPhoneFunctionality:
             # 模拟sleep函数，避免实际等待
             with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
                 # 执行被测试的函数
-                result = await send_text_message("13800138000", "测试短信")
+                result = await send_text_message("10086", "测试短信")
 
             # 验证结果
             assert "Failed to navigate to send button" in result
@@ -218,7 +218,7 @@ class TestPhoneFunctionality:
                 # 模拟短信查询返回正确的短信内容
                 mock_msg.return_value = (
                     True,
-                    """Row: 0 address=13800138000, body=你好，这是测试短信, date=1628151234567
+                    """Row: 0 address=10086, body=你好，这是测试短信, date=1628151234567
 Row: 1 address=13900139000, body=这是另一条测试短信, date=1628151234000""",
                 )
 
@@ -275,7 +275,7 @@ Row: 1 address=13900139000, body=这是另一条测试短信, date=1628151234000
                 # 模拟短信查询返回正确的短信内容
                 mock_msg.return_value = (
                     True,
-                    """Row: 0 address=13800138000, body=Hello, date=1628151234567
+                    """Row: 0 address=10086, body=Hello, date=1628151234567
 Row: 1 address=13900139000, body=世界, date=1628151234000""",
                 )
 
@@ -287,7 +287,7 @@ Row: 1 address=13900139000, body=世界, date=1628151234000""",
             assert any(text in result for text in ["Found", "SMS", "短信", "消息"])
             assert any(
                 text in result
-                for text in ["Hello", "世界", "13800138000", "13900139000"]
+                for text in ["Hello", "世界", "10086", "13900139000"]
             )
 
     async def test_get_raw_messages_no_messages(self, adb_mock):

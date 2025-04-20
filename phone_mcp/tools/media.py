@@ -4,6 +4,7 @@ import asyncio
 import subprocess
 import os.path
 import time
+import threading
 from ..core import run_command
 from ..config import SCREENSHOT_PATH, RECORDING_PATH, COMMAND_TIMEOUT
 
@@ -122,6 +123,36 @@ async def take_screenshot() -> str:
             return f"Failed to take screenshot: {direct_output}. Make sure the device is properly connected."
 
 
+def _download_recording_background(storage_path: str, duration_seconds: int):
+    """Background thread function for downloading the screen recording
+    
+    Args:
+        storage_path: Path to the recording file on the device
+        duration_seconds: Recording duration, used to wait for recording completion
+    """
+    import time
+    import os
+    import subprocess
+    
+    # Wait for recording to complete
+    time.sleep(duration_seconds + 2)  # Wait an extra 2 seconds to ensure recording is complete
+    
+    # Define local save path
+    local_filename = os.path.basename(storage_path)
+    
+    # Attempt to download the file
+    try:
+        pull_cmd = f"adb pull {storage_path} ./{local_filename}"
+        result = subprocess.run(pull_cmd, shell=True, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"\n✅ Recording downloaded successfully to ./{local_filename}")
+        else:
+            print(f"\n❌ Failed to download recording: {result.stderr}")
+    except Exception as e:
+        print(f"\n❌ Error downloading recording: {str(e)}")
+
+
 async def start_screen_recording(duration_seconds: int = 30) -> str:
     """Start recording the phone's screen.
 
@@ -180,35 +211,37 @@ async def start_screen_recording(duration_seconds: int = 30) -> str:
                 break
 
     # Start screen recording with the specified duration
-    cmd = f"adb shell screenrecord --time-limit {duration_seconds} {storage_path}"
-
     try:
-        # Run the command in a separate process so we can return immediately
-        process = await asyncio.create_subprocess_shell(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        # Use synchronous method to start screen recording, avoiding asyncio issues
+        cmd = f"adb shell screenrecord --time-limit {duration_seconds} {storage_path}"
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Start background thread to wait for recording completion and download the file
+        download_thread = threading.Thread(
+            target=_download_recording_background,
+            args=(storage_path, duration_seconds)
         )
-
+        download_thread.daemon = True  # Daemon thread, will automatically end when main thread ends
+        download_thread.start()
+        
         return (
             f"Started screen recording. Recording for {duration_seconds} seconds "
-            f"and will be saved to {storage_path}. "
-            f"Will attempt to download video when complete."
+            f"and will be saved to {storage_path}. Will attempt to download video when complete."
         )
-
-        # Note: We can't pull the file until recording is finished
 
     except Exception as e:
         return f"Failed to start screen recording: {str(e)}"
 
 
 async def play_media() -> str:
-    """Play or pause media on the phone.
+    """Simulate media button press to play/pause media.
 
-    Sends the media play/pause keycode to control any currently active media.
-    Can be used to play music or videos that were recently playing.
+    This function sends a keyevent that simulates pressing the media
+    play/pause button, which can control music, videos, or podcasts
+    that are currently playing.
 
     Returns:
-        str: Success message if the command was sent, or an error message
-             if the command failed.
+        str: Success message, or an error message if the command failed.
     """
     cmd = "adb shell input keyevent KEYCODE_MEDIA_PLAY_PAUSE"
     success, output = await run_command(cmd)
@@ -216,4 +249,4 @@ async def play_media() -> str:
     if success:
         return "Media play/pause command sent successfully"
     else:
-        return f"Failed to control media: {output}"
+        return f"Failed to send media command: {output}"

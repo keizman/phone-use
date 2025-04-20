@@ -16,115 +16,160 @@ logger = logging.getLogger("phone_mcp")
 
 async def dump_ui():
     """Dump the current UI hierarchy from the device.
-
+    
+    This function captures the current UI state of the device screen and returns
+    it in a structured format. It uses the uiautomator tool to create an XML dump
+    of the UI hierarchy.
+    
     Returns:
-        str: JSON string with UI elements or error message
+        str: JSON string containing:
+            {
+                "status": "success" or "error",
+                "message": Error message if status is error,
+                "elements": [
+                    {
+                        "resource_id": str,
+                        "class_name": str,
+                        "package": str,
+                        "content_desc": str,
+                        "text": str,
+                        "clickable": bool,
+                        "bounds": str,
+                        "center_x": int (if bounds available),
+                        "center_y": int (if bounds available)
+                    },
+                    ...
+                ]
+            }
+            
+    Raises:
+        - Device connection errors
+        - Permission errors when accessing UI
+        - XML parsing errors
+        - File system errors when handling temporary files
+    
+    Notes:
+        - Requires USB debugging to be enabled
+        - Device screen must be on and unlocked
+        - May fail if the app has special security measures
     """
     # Check for connected device
     connection_status = await check_device_connection()
     if "ready" not in connection_status:
-        logger.error("设备未连接或未就绪")
+        logger.error("Device not connected or not ready")
         return connection_status
 
-    # 创建临时文件路径
-    temp_dir = tempfile.gettempdir()
-    temp_file = os.path.join(temp_dir, "ui_dump.xml")
-    logger.debug(f"临时文件路径: {temp_file}")
+    # Create temp file path
+    try:
+        temp_dir = tempfile.gettempdir()
+        temp_file = os.path.join(temp_dir, "ui_dump.xml")
+        logger.debug(f"Temp file path: {temp_file}")
+    except Exception as e:
+        error_msg = f"Failed to create temp file: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "status": "error",
+            "message": error_msg
+        }, indent=2)
 
-    # 在设备上执行UI dump
-    logger.debug("开始在设备上dump UI")
+    # Execute UI dump on device
+    logger.debug("Starting UI dump on device")
     cmd = "adb shell uiautomator dump"
     success, output = await run_command(cmd)
-    logger.debug(f"UI dump命令执行结果: {success}, 输出: {output}")
+    logger.debug(f"UI dump command result: {success}, output: {output}")
 
-    # 检查dump是否成功
     if not success:
-        logger.error(f"UI dump失败: {output}")
+        error_msg = f"UI dump failed: {output}"
+        logger.error(error_msg)
         return json.dumps({
             "status": "error",
-            "message": "Failed to dump UI hierarchy",
-            "output": output
+            "message": error_msg
         }, indent=2)
 
-    # 获取dump文件的路径
+    # Get dump file path
     device_file_path = ""
     match = re.search(r"UI hierchary dumped to: (.*\.xml)", output)
-    if match:
-        device_file_path = match.group(1)
-        logger.debug(f"设备上dump文件路径: {device_file_path}")
-    else:
-        logger.error("无法找到dump文件路径")
+    if not match:
+        error_msg = "Could not find dump file path"
+        logger.error(error_msg)
         return json.dumps({
             "status": "error",
-            "message": "Could not find dump file path",
-            "output": output
+            "message": error_msg
         }, indent=2)
-
-    # 从设备pull文件到本地
-    logger.debug(f"开始pull文件: {device_file_path} -> {temp_file}")
-    pull_cmd = f"adb pull {device_file_path} {temp_file}"
-    pull_success, pull_output = await run_command(pull_cmd)
-    logger.debug(f"Pull结果: {pull_success}, 输出: {pull_output}")
-
-    if not pull_success:
-        logger.error(f"Pull文件失败: {pull_output}")
-        # 尝试直接从设备读取内容
-        logger.debug("尝试直接从设备读取文件内容")
-        cat_cmd = f"adb shell cat {device_file_path}"
-        cat_success, xml_content = await run_command(cat_cmd)
         
-        if not cat_success or not xml_content or "<hierarchy" not in xml_content:
-            logger.error("无法读取UI信息")
-            return json.dumps({
-                "status": "error",
-                "message": "Could not read UI dump file",
-                "output": pull_output
-            }, indent=2)
-    else:
-        # 从本地文件读取内容
-        try:
-            logger.debug(f"开始读取本地文件: {temp_file}")
-            with open(temp_file, "r", encoding="utf-8") as f:
-                xml_content = f.read()
-            logger.debug(f"文件读取成功，内容长度: {len(xml_content)}")
-        except Exception as e:
-            logger.exception(f"读取本地文件失败: {str(e)}")
-            return json.dumps({
-                "status": "error",
-                "message": f"Failed to read local XML file: {str(e)}",
-            }, indent=2)
+    device_file_path = match.group(1)
+    logger.debug(f"Device dump file path: {device_file_path}")
 
-    # 检查XML内容是否有效
-    if not xml_content or "<hierarchy" not in xml_content:
-        logger.error("XML内容无效")
+    # Pull file from device
+    cmd = f"adb pull {device_file_path} {temp_file}"
+    success, output = await run_command(cmd)
+    
+    if not success:
+        error_msg = f"Could not pull dump file from device: {output}"
+        logger.error(error_msg)
         return json.dumps({
             "status": "error",
-            "message": "Invalid XML content",
-            "xml_preview": xml_content[:100] if xml_content else "Empty content"
+            "message": error_msg
         }, indent=2)
 
-    # 处理XML并转换为JSON
+    # Parse XML file
     try:
-        logger.debug("开始处理XML")
-        json_result = process_ui_xml(xml_content)
-        logger.debug("XML处理成功")
+        tree = ET.parse(temp_file)
+        root = tree.getroot()
         
-        # 清理临时文件
+        elements = []
+        for elem in root.iter():
+            element_data = {
+                "resource_id": elem.attrib.get('resource-id', ''),
+                "class_name": elem.attrib.get('class', ''),
+                "package": elem.attrib.get('package', ''),
+                "content_desc": elem.attrib.get('content-desc', ''),
+                "text": elem.attrib.get('text', ''),
+                "clickable": elem.attrib.get('clickable', 'false').lower() == 'true',
+                "bounds": elem.attrib.get('bounds', '')
+            }
+            
+            # Parse bounds if available
+            bounds = elem.attrib.get('bounds', '')
+            if bounds:
+                try:
+                    bounds = bounds.replace('][', ',').replace('[', '').replace(']', '')
+                    coords = bounds.split(',')
+                    if len(coords) == 4:
+                        x1, y1, x2, y2 = map(int, coords)
+                        element_data["center_x"] = (x1 + x2) // 2
+                        element_data["center_y"] = (y1 + y2) // 2
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"Failed to parse element boundaries: {bounds}, error: {str(e)}")
+            
+            elements.append(element_data)
+        
+        return json.dumps({
+            "status": "success",
+            "elements": elements
+        }, indent=2)
+        
+    except ET.ParseError as e:
+        error_msg = f"Failed to parse XML file: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "status": "error",
+            "message": error_msg
+        }, indent=2)
+    except Exception as e:
+        error_msg = f"Error processing UI dump: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "status": "error",
+            "message": error_msg
+        }, indent=2)
+    finally:
+        # Clean up temp file
         try:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
-                logger.debug(f"已删除临时文件: {temp_file}")
-        except Exception as cleanup_error:
-            logger.warning(f"清理临时文件失败: {str(cleanup_error)}")
-            
-        return json_result
-    except Exception as e:
-        logger.exception(f"处理XML失败: {str(e)}")
-        return json.dumps({
-            "status": "error",
-            "message": f"Failed to process UI XML: {str(e)}",
-            "raw_xml_sample": xml_content[:500] if xml_content else "No XML content"
-        }, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to clean up temp file: {str(e)}")
 
 
 def process_ui_xml(xml_content):
@@ -196,7 +241,7 @@ def process_ui_xml(xml_content):
             elements.append(element)
 
     if not elements:
-        logger.warning("未找到任何UI元素")
+        logger.warning("No UI elements found")
         
     return json.dumps(
         {"status": "success", "count": len(elements), "elements": elements}, indent=2

@@ -61,16 +61,17 @@ uvx phone-mcp
 
 - 📞 **通话功能**：拨打电话、结束通话、接收来电
 - 💬 **短信功能**：发送短信、接收短信、获取原始短信
-- 👥 **联系人功能**：访问手机联系人
+- 👥 **联系人功能**：访问手机联系人、自动化创建联系人界面交互
 - 📸 **媒体功能**：截屏、录屏、控制媒体播放
-- 📱 **应用功能**：打开应用程序、设置闹钟、列出已安装应用、关闭应用
+- 📱 **应用功能**：打开应用程序、通过Intent启动特定活动、列出已安装应用、关闭应用
 - 🔧 **系统功能**：获取窗口信息、应用快捷方式
 - 🗺️ **地图功能**：搜索周边带电话号码的POI信息
 - 🖱️ **UI交互**：点击、滑动、输入文本、按键操作
 - 🔍 **UI检查**：通过文本、ID、类名或描述查找元素
-- 🤖 **UI自动化**：等待元素出现、滚动查找元素、监控UI变化
+- 🤖 **UI自动化**：等待元素出现、滚动查找元素
 - 🧠 **屏幕分析**：结构化屏幕信息和统一交互接口
 - 🌐 **浏览器功能**：在设备默认浏览器中打开URL
+- 🔄 **UI监控**：监控UI变化，等待特定元素出现或消失
 
 ## 🛠️ 系统要求
 
@@ -103,8 +104,11 @@ phone-cli send-sms 10086 "你好"
 # 查看短信
 phone-cli messages --limit 10
 
-# 获取联系人
+# 获取联系人（带分页）
 phone-cli contacts --limit 20
+
+# 通过UI自动化创建新联系人
+phone-cli create-contact "张三" "10086"
 ```
 
 ### 媒体与应用
@@ -115,8 +119,11 @@ phone-cli screenshot
 # 录屏
 phone-cli record --duration 30
 
-# 打开应用
+# 打开应用（在某些设备上可能不工作）
 phone-cli app camera
+
+# 使用open_app命令打开应用（如果app命令不可用）
+phone-cli open_app camera
 
 # 关闭应用
 phone-cli close-app com.android.camera
@@ -130,8 +137,17 @@ phone-cli list-apps --page 1 --page-size 10
 # 显示应用详细信息（速度较慢）
 phone-cli list-apps --detailed
 
-# 启动特定活动
+# 启动特定活动（所有设备上最可靠的方法）
 phone-cli launch com.android.settings/.Settings
+
+# 通过包名启动应用（在某些设备上可能不工作）
+phone-cli app com.android.contacts
+
+# 使用open_app命令通过包名启动应用（如果app命令不可用）
+phone-cli open_app com.android.contacts
+
+# 通过包名和活动名启动应用（最可靠的方法）
+phone-cli launch com.android.dialer/com.android.dialer.DialtactsActivity
 
 # 在默认浏览器中打开网页
 phone-cli open-url google.com
@@ -148,6 +164,12 @@ phone-cli screen-interact <动作> [参数]
 # 通过坐标点击
 phone-cli screen-interact tap x=500 y=800
 
+# 通过文本内容点击元素
+phone-cli screen-interact tap element_text="登录"
+
+# 通过内容描述点击元素
+phone-cli screen-interact tap element_content_desc="日历"
+
 # 滑动手势（向下滚动）
 phone-cli screen-interact swipe x1=500 y1=1000 x2=500 y2=200 duration=300
 
@@ -155,7 +177,7 @@ phone-cli screen-interact swipe x1=500 y1=1000 x2=500 y2=200 duration=300
 phone-cli screen-interact key keycode=back
 
 # 输入文本
-phone-cli screen-interact text content="你好世界"
+phone-cli screen-interact text content="10086"
 
 # 查找元素
 phone-cli screen-interact find method=text value="登录" partial=true
@@ -167,7 +189,19 @@ phone-cli screen-interact wait method=text value="成功" timeout=10
 phone-cli screen-interact scroll method=text value="设置" direction=down max_swipes=5
 
 # 监控UI变化
-phone-cli monitor-ui --interval 1 --duration 60
+phone-cli monitor-ui --interval 0.5 --duration 30
+
+# 监控直到特定文本出现
+phone-cli monitor-ui --watch-for text_appears --text "欢迎"
+
+# 监控直到特定元素ID出现
+phone-cli monitor-ui --watch-for id_appears --id "login_button"
+
+# 监控直到特定元素类型出现
+phone-cli monitor-ui --watch-for class_appears --class-name "android.widget.Button"
+
+# 监控UI变化并输出原始JSON数据
+phone-cli monitor-ui --raw
 ```
 
 ### 位置与地图
@@ -178,18 +212,179 @@ phone-cli get-poi 116.480053,39.987005 --keywords 餐厅 --radius 1000
 
 ## 📚 高级用法
 
-### 屏幕驱动的自动化
+### 应用和活动启动
 
-统一屏幕交互接口使智能代理能够轻松地：
+插件提供了多种方式启动应用和活动：
+
+1. **通过应用名称**（两种方法）：
+   ```bash
+   # 方法1：使用app命令（在某些设备上可能不工作）
+   phone-cli app camera
+   
+   # 方法2：使用open_app命令（如果app命令失败则使用此方法）
+   phone-cli open_app camera
+   ```
+
+2. **通过包名**（两种方法）：
+   ```bash
+   # 方法1：使用app命令（在某些设备上可能不工作）
+   phone-cli app com.android.contacts
+   
+   # 方法2：使用open_app命令（如果app命令失败则使用此方法）
+   phone-cli open_app com.android.contacts
+   ```
+
+3. **通过包名和活动名**（最可靠的方法）：
+   ```bash
+   # 此方法在所有设备上都有效
+   phone-cli launch com.android.dialer/com.android.dialer.DialtactsActivity
+   ```
+
+> **注意**：如果您在使用`app`或`open_app`命令时遇到问题，请始终使用`launch`命令并指定完整的组件名称（包名/活动名），这是最可靠的操作方式。
+
+### 通过UI自动化创建联系人
+
+插件提供了通过UI交互创建联系人的方式：
+
+```bash
+# 通过UI自动化创建新联系人
+phone-cli create-contact "张三" "10086"
+```
+
+此命令将：
+1. 打开联系人应用
+2. 导航到联系人创建界面
+3. 填写姓名和电话号码字段
+4. 自动保存联系人
+
+### 基于屏幕的自动化
+
+统一的屏幕交互接口使智能代理能够轻松：
 
 1. **分析屏幕**：获取UI元素和文本的结构化分析
 2. **做出决策**：基于检测到的UI模式和可用操作
 3. **执行交互**：通过一致的参数系统
-4. **监控变化**：持续观察UI变化并自动响应
+
+### UI监控和自动化
+
+插件提供强大的UI监控功能，可检测界面变化：
+
+1. **基本UI监控**：
+   ```bash
+   # 以自定义间隔（秒）监控任何UI变化
+   phone-cli monitor-ui --interval 0.5 --duration 30
+   ```
+
+2. **等待特定元素出现**：
+   ```bash
+   # 等待文本出现（对自动化测试有用）
+   phone-cli monitor-ui --watch-for text_appears --text "登录成功"
+   
+   # 等待特定ID出现
+   phone-cli monitor-ui --watch-for id_appears --id "confirmation_dialog"
+   ```
+
+3. **监控元素消失**：
+   ```bash
+   # 等待文本消失
+   phone-cli monitor-ui --watch-for text_disappears --text "加载中..."
+   ```
+
+4. **获取详细的UI变化报告**：
+   ```bash
+   # 获取包含所有UI变化信息的原始JSON数据
+   phone-cli monitor-ui --raw
+   ```
+
+> **提示**：UI监控对自动化脚本特别有用，可等待加载屏幕完成，或确认操作已在UI中生效。
 
 ## 📚 详细文档
 
 完整文档和配置说明请访问我们的 [GitHub 仓库](https://github.com/hao-cyber/phone-mcp)。
+
+## 🧰 工具文档
+
+### 屏幕接口 API
+
+插件提供了功能强大的屏幕接口，包含与设备交互的全面 API。以下是主要函数及其参数：
+
+#### interact_with_screen
+```python
+async def interact_with_screen(action: str, params: Dict[str, Any] = None) -> str:
+    """执行屏幕交互操作"""
+```
+- **参数：**
+  - `action`: 操作类型（"tap"点击, "swipe"滑动, "key"按键, "text"文本输入, "find"查找, "wait"等待, "scroll"滚动）
+  - `params`: 包含特定操作参数的字典
+- **返回值：** 包含操作结果的JSON字符串
+
+**示例：**
+```python
+# 通过坐标点击
+result = await interact_with_screen("tap", {"x": 100, "y": 200})
+
+# 通过元素文本点击
+result = await interact_with_screen("tap", {"element_text": "登录"})
+
+# 向下滑动
+result = await interact_with_screen("swipe", {"x1": 500, "y1": 300, "x2": 500, "y2": 1200, "duration": 300})
+
+# 输入文本
+result = await interact_with_screen("text", {"content": "你好世界"})
+
+# 按返回键
+result = await interact_with_screen("key", {"keycode": "back"})
+
+# 通过文本查找元素
+result = await interact_with_screen("find", {"method": "text", "value": "设置", "partial": True})
+
+# 等待元素出现
+result = await interact_with_screen("wait", {"method": "text", "value": "成功", "timeout": 10, "interval": 0.5})
+
+# 滚动查找元素
+result = await interact_with_screen("scroll", {"method": "text", "value": "隐私政策", "direction": "down", "max_swipes": 8})
+```
+
+#### analyze_screen
+```python
+async def analyze_screen(include_screenshot: bool = False, max_elements: int = 50) -> str:
+    """分析当前屏幕并提供UI元素的结构化信息"""
+```
+- **参数：**
+  - `include_screenshot`: 是否在结果中包含base64编码的截图
+  - `max_elements`: 要处理的最大UI元素数量
+- **返回值：** 包含详细屏幕分析的JSON字符串
+
+#### create_contact
+```python
+async def create_contact(name: str, phone: str) -> str:
+    """创建具有指定姓名和电话号码的新联系人"""
+```
+- **参数：**
+  - `name`: 联系人的全名
+  - `phone`: 联系人的电话号码
+- **返回值：** 包含操作结果的JSON字符串
+
+#### launch_app_activity
+```python
+async def launch_app_activity(package_name: str, activity_name: Optional[str] = None) -> str:
+    """使用包名和可选的活动名称启动应用"""
+```
+- **参数：**
+  - `package_name`: 要启动的应用的包名
+  - `activity_name`: 要启动的特定活动（可选）
+- **返回值：** 包含操作结果的JSON字符串
+
+#### launch_intent
+```python
+async def launch_intent(intent_action: str, intent_type: Optional[str] = None, extras: Optional[Dict[str, str]] = None) -> str:
+    """使用Android意图系统启动活动"""
+```
+- **参数：**
+  - `intent_action`: 要执行的操作
+  - `intent_type`: 意图的MIME类型（可选）
+  - `extras`: 要与意图一起传递的额外数据（可选）
+- **返回值：** 包含操作结果的JSON字符串
 
 ## 📄 许可证
 

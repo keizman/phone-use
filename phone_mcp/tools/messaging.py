@@ -167,7 +167,7 @@ async def receive_text_messages(limit: int = 5) -> str:
         if success and output and "Row:" in output:
             messages = []
             # Parse the output following the known format
-            # Example output: "Row: 0 address=13831151111, body=晚上来金丝特7点聚餐, date=1744270871178"
+            # Example output: "Row: 0 address=13831151111, body=Meeting at 7pm tonight, date=1744270871178"
             rows = output.split("Row:")
             rows = [r for r in rows if r.strip()]
 
@@ -238,17 +238,22 @@ async def receive_text_messages(limit: int = 5) -> str:
     )
 
 
-async def get_raw_messages(limit: int = 5) -> str:
-    """Get recent text messages from the phone.
+async def get_sent_messages(limit: int = 5) -> str:
+    """Get recently sent text messages from the phone.
 
-    Retrieves recent SMS messages from the device's SMS database.
-    This is the core implementation used by receive_text_messages.
+    Retrieves sent SMS messages from the device's SMS database.
+    This provides a complete list of messages that were successfully sent from this device.
 
     Args:
-        limit (int): Maximum number of messages to retrieve (default: 5)
+        limit (int): Maximum number of sent messages to retrieve (default: 5)
 
     Returns:
-        str: JSON string containing messages or error details
+        str: JSON string containing sent messages with:
+             - from: Sender phone number (device owner)
+             - to: Recipient phone number
+             - text: Message content
+             - date: Timestamp
+             - formatted_date: Human-readable date time (like "2023-07-25 14:30:22")
     """
     # Check for connected device
     from ..core import check_device_connection
@@ -257,11 +262,11 @@ async def get_raw_messages(limit: int = 5) -> str:
     if "ready" not in connection_status:
         return connection_status
 
-    cmd = "adb shell content query --uri content://sms/inbox --projection address,body,date"
+    cmd = "adb shell content query --uri content://sms/sent --projection address,body,date"
     success, output = await run_command(cmd)
 
     if not success or not output or not "Row:" in output:
-        return "Unable to retrieve SMS messages. Device may not have any SMS or may restrict access."
+        return "Unable to retrieve sent SMS messages. Device may not have any sent messages or may restrict access."
 
     # Direct string parsing, avoiding JSON and complex processing
     result = []
@@ -277,12 +282,12 @@ async def get_raw_messages(limit: int = 5) -> str:
             # Extract components
             message = {}
 
-            # Extract address
+            # Extract address (recipient for sent messages)
             if "address=" in row:
                 address_start = row.find("address=") + 8
                 address_end = row.find(",", address_start)
                 if address_end > 0:
-                    message["from"] = row[address_start:address_end].strip()
+                    message["to"] = row[address_start:address_end].strip()
 
             # Extract body
             if "body=" in row:
@@ -311,23 +316,23 @@ async def get_raw_messages(limit: int = 5) -> str:
                 except:
                     message["formatted_date"] = "Unknown date"
 
-            if "from" in message and "text" in message:
+            if "to" in message and "text" in message:
                 result.append(message)
                 count += 1
 
         if not result:
-            return "No SMS messages found in the inbox."
+            return "No sent SMS messages found."
 
         # Format for human-readable output
-        output_lines = [f"Found {len(result)} SMS messages:"]
+        output_lines = [f"Found {len(result)} sent SMS messages:"]
         for i, msg in enumerate(result, 1):
-            from_line = f"From: {msg.get('from', 'Unknown')}"
+            to_line = f"To: {msg.get('to', 'Unknown')}"
             date_line = f"Date: {msg.get('formatted_date', 'Unknown')}"
             text_line = msg.get("text", "No content")
 
-            output_lines.append(f"\n{i}. {from_line} - {date_line}")
+            output_lines.append(f"\n{i}. {to_line} - {date_line}")
             output_lines.append(f"   {text_line}")
 
         return "\n".join(output_lines)
     except Exception as e:
-        return f"Error parsing SMS messages: {str(e)}"
+        return f"Error parsing sent SMS messages: {str(e)}"

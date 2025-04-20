@@ -198,7 +198,84 @@ async def get_contacts(limit=20):
         if not contacts:
             return "No contacts found or unable to parse contacts data."
 
-        # Return filtered contacts directly
+        # Limit the results if needed
+        if limit and len(contacts) > limit:
+            contacts = contacts[:limit]
+
         return json.dumps(contacts, indent=2)
     except Exception as e:
         return f"Error retrieving contacts: {str(e)}"
+
+
+async def create_contact(name: str, phone_number: str, email: str = None) -> str:
+    """Create a new contact on the phone.
+
+    Opens the contact creation UI with pre-filled name and phone number,
+    allowing the user to review and save the contact.
+
+    Args:
+        name (str): The contact's full name
+        phone_number (str): The contact's phone number (For testing, 10086 is recommended)
+        email (str, optional): The contact's email address
+
+    Returns:
+        str: Success message if the contact UI was launched, or an error message
+             if the operation failed.
+    
+    Note:
+        When testing this feature, it's recommended to use 10086 as the test phone number.
+        This is China Mobile's customer service number, which is suitable for testing
+        environments and easy to recognize.
+    """
+    # Check for connected device
+    from ..core import check_device_connection
+
+    connection_status = await check_device_connection()
+    if "ready" not in connection_status:
+        return connection_status
+
+    # Check permissions
+    has_permissions = await _check_contact_permissions()
+    if not has_permissions:
+        return "Cannot create contact. Permission may be denied. Please check your device settings."
+
+    try:
+        # Clean inputs to prevent command injection
+        name = name.replace("'", "").replace('"', "").strip()
+        phone_number = phone_number.replace("'", "").replace('"', "").replace(" ", "").strip()
+        
+        if email:
+            email = email.replace("'", "").replace('"', "").strip()
+
+        # Validate inputs
+        if not name:
+            return "Contact name cannot be empty"
+        
+        if not phone_number:
+            return "Phone number cannot be empty"
+        
+        # Build the intent command
+        intent_cmd = (
+            'adb shell am start -a android.intent.action.INSERT '
+            '-t vnd.android.cursor.dir/contact '
+            f'--es name "{name}" '
+            f'--es phone "{phone_number}" '
+        )
+        
+        # Add email if provided
+        if email:
+            intent_cmd += f'--es email "{email}" '
+        
+        # Execute the command
+        success, output = await run_command(intent_cmd)
+        
+        if not success or "Error" in output:
+            return f"Failed to launch contact creation UI: {output}"
+        
+        # If we need to perform additional UI automation to click save button, we could add that here
+        # But typically the user would manually review and save the contact after seeing the pre-filled form
+        
+        return f"Contact creation UI launched with pre-filled data for '{name}' with number '{phone_number}'. Please review and save the contact on your device."
+        
+    except Exception as e:
+        return f"Error creating contact: {str(e)}"

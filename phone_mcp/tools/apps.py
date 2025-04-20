@@ -5,80 +5,51 @@ import re
 from ..core import run_command, check_device_connection
 
 
-async def open_app(app_name: str) -> str:
-    """Open an application on the phone.
-
-    Launches the specified application by its package name or attempts to
-    find and launch a matching app if a common name is provided.
-
-    Args:
-        app_name (str): The application name or package name to open.
-                       Common names like "camera", "maps", etc. are supported.
-
-    Returns:
-        str: Success message if the app was opened, or an error message
-             if the app could not be found or launched.
-    """
-    # Check for connected device
-    connection_status = await check_device_connection()
-    if "ready" not in connection_status:
-        return connection_status
-
-    # Dictionary of common app names to package names
-    common_apps = {
-        "camera": "com.android.camera",
-        "maps": "com.google.android.apps.maps",
-        "photos": "com.google.android.apps.photos",
-        "settings": "com.android.settings",
-        "chrome": "com.android.chrome",
-        "youtube": "com.google.android.youtube",
-        "gmail": "com.google.android.gm",
-        "calendar": "com.google.android.calendar",
-        "clock": "com.google.android.deskclock",
-        "contacts": "com.android.contacts",
-        "calculator": "com.google.android.calculator",
-        "files": "com.google.android.apps.nbu.files",
-        "music": "com.google.android.music",
-        "messages": "com.google.android.apps.messaging",
-        "facebook": "com.facebook.katana",
-        "instagram": "com.instagram.android",
-        "twitter": "com.twitter.android",
-        "whatsapp": "com.whatsapp",
-        "wechat": "com.tencent.mm",
-        "alipay": "com.eg.android.AlipayGphone",
-        "taobao": "com.taobao.taobao",
-        "jd": "com.jingdong.app.mall",
-        "douyin": "com.ss.android.ugc.aweme",
-        "weibo": "com.sina.weibo",
-    }
-
-    # Check if the app_name is in our dictionary
-    package_name = common_apps.get(app_name.lower(), app_name)
-
-    # Launch the app
-    cmd = f"adb shell monkey -p {package_name} -c android.intent.category.LAUNCHER 1"
-    success, output = await run_command(cmd)
-
-    if success and "No activities found" not in output:
-        return f"Successfully opened {app_name}"
-    else:
-        return f"Failed to open app '{app_name}'. Please check if the app is installed."
-
 
 async def list_installed_apps(
-    only_system=False, only_third_party=False, limit=50, basic=True
+    only_system=False, only_third_party=False, page=1, page_size=10, basic=True
 ):
-    """List installed applications on the device.
+    """List installed applications on the device with pagination support.
 
     Args:
         only_system (bool): If True, only show system apps
         only_third_party (bool): If True, only show third-party apps
-        limit (int): Maximum number of apps to return (default: 50)
+        page (int): Page number (starts from 1)
+        page_size (int): Number of items per page
         basic (bool): If True, only return basic info (faster loading, default behavior)
 
     Returns:
-        str: JSON string with list of installed apps or error message
+        str: JSON string containing:
+            {
+                "status": "success" or "error",
+                "message": Error message if status is error,
+                "total_count": Total number of apps,
+                "total_pages": Total number of pages,
+                "current_page": Current page number,
+                "page_size": Number of items per page,
+                "apps": [
+                    {
+                        "package_name": str,
+                        "app_name": str,
+                        "system_app": bool,
+                        "version_name": str (if not basic),
+                        "version_code": str (if not basic),
+                        "install_time": str (if not basic)
+                    },
+                    ...
+                ]
+            }
     """
+    # Ensure page and page_size are integers
+    try:
+        page = int(page)
+        page_size = int(page_size)
+    except (ValueError, TypeError):
+        return json.dumps({
+            "status": "error",
+            "message": "Invalid page or page_size parameter. Must be integers."
+        }, indent=2)
+
     # Check for connected device
     connection_status = await check_device_connection()
     if "ready" not in connection_status:
@@ -105,90 +76,76 @@ async def list_installed_apps(
         )
 
     # Process the output - convert package list to array
-    package_names = []
+    all_packages = []
     for line in output.strip().split("\n"):
         if line.startswith("package:"):
             package_name = line[8:].strip()  # Remove "package:" prefix
-            package_names.append(package_name)
+            all_packages.append(package_name)
 
-    # Sort package names alphabetically
-    package_names.sort()
+    # Calculate pagination
+    total_count = len(all_packages)
+    total_pages = (total_count + page_size - 1) // page_size
     
-    # Apply limit - ensure it's an integer
-    try:
-        # Convert limit to integer if it's not already
-        limit_int = int(limit) if limit is not None else 50
-        # Use the limit if it's positive, otherwise use all packages
-        if limit_int > 0:
-            package_names = package_names[:limit_int]
-    except (ValueError, TypeError):
-        # If limit is not convertible to int, use default of 50
-        package_names = package_names[:50]
+    # Validate page number
+    if page < 1:
+        page = 1
+    elif page > total_pages:
+        page = total_pages if total_pages > 0 else 1
     
-    # 批量获取所有系统应用(优化点：一次性获取所有系统应用)
-    system_packages = set()
-    if not only_system and not only_third_party:
-        sys_cmd = "adb shell cmd package list packages -s"
-        sys_success, sys_output = await run_command(sys_cmd)
-        if sys_success:
-            for line in sys_output.strip().split("\n"):
-                if line.startswith("package:"):
-                    system_packages.add(line[8:].strip())  # 将系统应用名称加入集合
+    # Calculate slice indices for pagination
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_count)
     
-    # Get details for all found packages
-    detailed_apps = []
+    # Get packages for current page
+    current_packages = all_packages[start_idx:end_idx]
     
-    for package in package_names:
-        # Create basic app info with package name
-        app_info = {
-            "package_name": package,
-            "app_name": package.split(".")[-1],  # Default app name from package
-            "is_system": False  # Will be updated below
-        }
+    # Process packages based on basic/detailed mode
+    apps_info = []
+    for package_name in current_packages:
+        app_info = {"package_name": package_name}
         
-        # Check if this is a system package (优化点：直接从预先获取的集合中查询)
-        if only_system:
-            app_info["is_system"] = True
-        elif only_third_party:
-            app_info["is_system"] = False
+        # Get app label (name)
+        cmd = f'adb shell cmd package get-app-label {package_name}'
+        success, label_output = await run_command(cmd)
+        if success and label_output:
+            app_info["app_name"] = label_output.strip()
         else:
-            # 直接检查包名是否在系统应用集合中，无需再次执行adb命令
-            app_info["is_system"] = package in system_packages
-        
-        # 当basic=True时，跳过详细信息查询，只返回基本信息
-        if not basic:
-            # 优化：合并应用标签和版本信息的查询，一次获取所有需要的信息
-            info_cmd = f"adb shell dumpsys package {package} | grep -E 'targetSdk|applicationInfo|versionName|versionCode'"
-            info_success, info_output = await run_command(info_cmd)
+            app_info["app_name"] = package_name
             
-            if info_success and info_output:
-                # 解析应用名称
-                name_match = re.search(r"label=([^=\s]+)", info_output)
-                if name_match:
-                    app_info["app_name"] = name_match.group(1)
-                    
-                # 解析目标SDK版本
-                sdk_match = re.search(r"targetSdk=(\d+)", info_output)
-                if sdk_match:
-                    app_info["target_sdk"] = sdk_match.group(1)
-                
-                # 解析版本名称
-                version_name_match = re.search(r"versionName=([^=\s]+)", info_output)
-                if version_name_match:
-                    app_info["version_name"] = version_name_match.group(1)
-                    
-                # 解析版本号
-                version_code_match = re.search(r"versionCode=(\d+)", info_output)
-                if version_code_match:
-                    app_info["version_code"] = version_code_match.group(1)
+        # Check if system app
+        cmd = f'adb shell pm path {package_name}'
+        success, path_output = await run_command(cmd)
+        app_info["system_app"] = success and "system" in path_output.lower()
         
-        detailed_apps.append(app_info)
+        if not basic:
+            # Get detailed info
+            cmd = f'adb shell dumpsys package {package_name}'
+            success, info_output = await run_command(cmd)
+            if success:
+                # Parse version info
+                version_name = re.search(r"versionName=([^=\s]+)", info_output)
+                if version_name:
+                    app_info["version_name"] = version_name.group(1)
+                    
+                version_code = re.search(r"versionCode=(\d+)", info_output)
+                if version_code:
+                    app_info["version_code"] = version_code.group(1)
+                    
+                # Parse install time
+                first_install = re.search(r"firstInstallTime=([^=\s]+)", info_output)
+                if first_install:
+                    app_info["install_time"] = first_install.group(1)
+        
+        apps_info.append(app_info)
     
-    # Create the final result with proper stats
+    # Create the final result
     result = {
         "status": "success",
-        "count": len(detailed_apps),
-        "apps": detailed_apps
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "current_page": page,
+        "page_size": page_size,
+        "apps": apps_info
     }
     
     if only_system:
