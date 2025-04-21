@@ -5,10 +5,11 @@
 
 ## Example
 - Based on today's weather by browser, automatically select and play netease music, no confirmation needed
-https://github.com/user-attachments/assets/1170ea56-ef37-4f05-9252-995840598fff
+![play_mucic_x2](https://github.com/user-attachments/assets/58a39b26-6e8b-4f00-8073-3881f657aa5c)
+
 
 - Call Hao from the contacts. If he doesn't answer, send a text message telling him to come to Meeting Room 101.
-https://github.com/user-attachments/assets/de2f966b-b00f-43f0-b3f4-716d6e617b60
+![call_sms_x2](https://github.com/user-attachments/assets/9a155e7c-6dde-4248-b499-0444f19448d0)
 
 
 [中文文档](README_zh.md)
