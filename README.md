@@ -1,5 +1,5 @@
 # 📱 Phone MCP Plugin
-![Downloads](https://pepy.tech/badge/your-package-name)
+![Downloads](https://pepy.tech/badge/phone-mcp)
 
 🌟 A powerful MCP plugin that lets you control your Android phone with ease through ADB commands.
 
