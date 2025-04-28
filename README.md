@@ -3,6 +3,15 @@
 
 🌟 A powerful MCP plugin that lets you control your Android phone with ease through ADB commands.
 
+## Example
+- Based on today's weather by browser, automatically select and play netease music, no confirmation needed
+![play_mucic_x2](https://github.com/user-attachments/assets/58a39b26-6e8b-4f00-8073-3881f657aa5c)
+
+
+- Call Hao from the contacts. If he doesn't answer, send a text message telling him to come to Meeting Room 101.
+![call_sms_x2](https://github.com/user-attachments/assets/9a155e7c-6dde-4248-b499-0444f19448d0)
+
+
 [中文文档](README_zh.md)
 
 ## ⚡ Quick Start
