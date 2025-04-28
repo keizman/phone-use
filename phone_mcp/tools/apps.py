@@ -297,7 +297,7 @@ async def set_alarm(hour: int, minute: int, label: str = "Alarm") -> str:
         return f"Failed to set alarm: {output}"
 
 
-async def launch_app_activity(package_name: str, activity_name: Optional[str] = None) -> str:
+async def launch_app_activity(package_name: str, activity_name: str = None) -> str:
     """Launch an app using package name and optionally an activity name
     
     This function uses adb to start an application on the device either by package name
@@ -306,7 +306,7 @@ async def launch_app_activity(package_name: str, activity_name: Optional[str] = 
     
     Args:
         package_name (str): The package name of the app to launch (e.g., "com.android.contacts")
-        activity_name (str, optional): The specific activity to launch. If not provided,
+        activity_name (str): The specific activity to launch. If not provided,
                                       launches the app's main activity. Defaults to None.
     
     Returns:

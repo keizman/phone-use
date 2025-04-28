@@ -1,5 +1,5 @@
 # 📱 Phone MCP Plugin
-![Downloads](https://pepy.tech/badge/your-package-name)
+![Downloads](https://pepy.tech/badge/phone-mcp)
 
 🌟 A powerful MCP plugin that lets you control your Android phone with ease through ADB commands.
 
@@ -9,15 +9,66 @@
 
 ### 📥 Installation
 ```bash
+# Install with pip
 pip install phone-mcp
-# or use uvx
-uvx phone-mcp
+
+# Or install with uv
+uv install phone-mcp
 ```
 
 ### 🔧 Configuration
 
 #### Cursor Setup
 Configure in `~/.cursor/mcp.json`:
+
+For pip installation:
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "python",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ]
+        }
+    }
+}
+```
+
+For uv installation:
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "uvx",
+            "args": [
+                "phone-mcp"
+            ]
+        }
+    }
+}
+```
+
+#### Trae Setup
+Configure in Trae configuration:
+
+For pip installation:
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "python",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ]
+        }
+    }
+}
+```
+
+For uv installation:
 ```json
 {
     "mcpServers": {
@@ -33,6 +84,23 @@ Configure in `~/.cursor/mcp.json`:
 
 #### Claude Setup
 Add to Claude configuration:
+
+For pip installation:
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "python",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ]
+        }
+    }
+}
+```
+
+For uv installation:
 ```json
 {
     "mcpServers": {

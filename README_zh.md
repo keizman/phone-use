@@ -1,5 +1,5 @@
 # 📱 Phone MCP Plugin
-![Downloads](https://pepy.tech/badge/your-package-name)
+![Downloads](https://pepy.tech/badge/phone-mcp)
 
 🌟 一个强大的 MCP 手机控制插件，让您轻松通过 ADB 命令控制 Android 手机。
 
@@ -9,15 +9,66 @@
 
 ### 📥 安装
 ```bash
+# 使用 pip 安装
 pip install phone-mcp
-# 或使用 uvx
-uvx phone-mcp
+
+# 或使用 uv 安装
+uv install phone-mcp
 ```
 
 ### 🔧 配置说明
 
 #### Cursor 配置
 在 `~/.cursor/mcp.json` 中配置：
+
+使用 pip 安装时的配置：
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "python",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ]
+        }
+    }
+}
+```
+
+使用 uv 安装时的配置：
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "uvx",
+            "args": [
+                "phone-mcp"
+            ]
+        }
+    }
+}
+```
+
+#### Trae 配置
+在 Trae 配置中添加：
+
+使用 pip 安装时的配置：
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "python",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ]
+        }
+    }
+}
+```
+
+使用 uv 安装时的配置：
 ```json
 {
     "mcpServers": {
@@ -33,12 +84,29 @@ uvx phone-mcp
 
 #### Claude 配置
 在 Claude 配置中添加：
+
+使用 pip 安装时的配置：
+```json
+{
+    "mcpServers": {
+        "phone-mcp": {
+            "command": "python",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ]
+        }
+    }
+}
+```
+
+使用 uv 安装时的配置：
 ```json
 {
     "mcpServers": {
         "phone-mcp": {
             "command": "uvx",
-            "args": [                
+            "args": [
                 "phone-mcp"
             ]
         }
