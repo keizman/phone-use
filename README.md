@@ -18,34 +18,22 @@
 
 ### 📥 Installation
 ```bash
-# Install with pip
-pip install phone-mcp
+# Run directly with uvx (recommended, part of uv, no separate installation needed)
+uvx phone-mcp
 
 # Or install with uv
-uv install phone-mcp
+uv pip install phone-mcp
+
+# Or install with pip
+pip install phone-mcp
 ```
+
 
 ### 🔧 Configuration
 
-#### Cursor Setup
-Configure in `~/.cursor/mcp.json`:
+#### AI Assistant Configuration
+Configure in your AI assistant configuration (Cursor, Trae, Claude, etc.):
 
-For pip installation:
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "python",
-            "args": [
-                "-m",
-                "phone_mcp"
-            ]
-        }
-    }
-}
-```
-
-For uv installation:
 ```json
 {
     "mcpServers": {
@@ -59,15 +47,12 @@ For uv installation:
 }
 ```
 
-#### Trae Setup
-Configure in Trae configuration:
-
-For pip installation:
+Alternatively, if you installed with pip:
 ```json
 {
     "mcpServers": {
         "phone-mcp": {
-            "command": "python",
+            "command": "/usr/local/bin/python",
             "args": [
                 "-m",
                 "phone_mcp"
@@ -77,51 +62,31 @@ For pip installation:
 }
 ```
 
-For uv installation:
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "uvx",
-            "args": [
-                "phone-mcp"
-            ]
-        }
-    }
-}
-```
+> **Important**: The path `/usr/local/bin/python` in the configuration above is the path to the Python interpreter. You need to modify it according to the actual Python installation location on your system. Here's how to find the Python path on different operating systems:
+>
+> **Linux/macOS**:
+> Run the following command in terminal:
+> ```bash
+> which python3
+> ```
+> or
+> ```bash
+> which python
+> ```
+>
+> **Windows**:
+> Run in Command Prompt (CMD):
+> ```cmd
+> where python
+> ```
+> Or in PowerShell:
+> ```powershell
+> (Get-Command python).Path
+> ```
+>
+> Make sure to replace `/usr/local/bin/python` in the configuration with the full path, for example on Windows it might be `C:\Python39\python.exe`
 
-#### Claude Setup
-Add to Claude configuration:
-
-For pip installation:
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "python",
-            "args": [
-                "-m",
-                "phone_mcp"
-            ]
-        }
-    }
-}
-```
-
-For uv installation:
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "uvx",
-            "args": [
-                "phone-mcp"
-            ]
-        }
-    }
-}
-```
+> **Note**: For Cursor, place this configuration in `~/.cursor/mcp.json`
 
 Usage:
 - Use commands directly in Claude conversation, for example:

@@ -9,34 +9,20 @@
 
 ### 📥 安装
 ```bash
-# 使用 pip 安装
-pip install phone-mcp
+# 直接使用 uvx 运行（推荐，uvx 是 uv 的一部分，无需单独安装）
+uvx phone-mcp
 
 # 或使用 uv 安装
-uv install phone-mcp
+uv pip install phone-mcp
+
+# 或使用 pip 安装
+pip install phone-mcp
 ```
 
 ### 🔧 配置说明
+#### AI 助手配置
+在您的 AI 助手配置中添加（适用于 Cursor、Trae、Claude 等）：
 
-#### Cursor 配置
-在 `~/.cursor/mcp.json` 中配置：
-
-使用 pip 安装时的配置：
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "python",
-            "args": [
-                "-m",
-                "phone_mcp"
-            ]
-        }
-    }
-}
-```
-
-使用 uv 安装时的配置：
 ```json
 {
     "mcpServers": {
@@ -50,15 +36,12 @@ uv install phone-mcp
 }
 ```
 
-#### Trae 配置
-在 Trae 配置中添加：
-
-使用 pip 安装时的配置：
+如果您使用 pip 安装，则配置如下：
 ```json
 {
     "mcpServers": {
         "phone-mcp": {
-            "command": "python",
+            "command": "/usr/local/bin/python",
             "args": [
                 "-m",
                 "phone_mcp"
@@ -68,54 +51,34 @@ uv install phone-mcp
 }
 ```
 
-使用 uv 安装时的配置：
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "uvx",
-            "args": [
-                "phone-mcp"
-            ]
-        }
-    }
-}
-```
+> **重要提示**：上述配置中的 `/usr/local/bin/python` 是 Python 解释器的路径，您需要根据自己系统中 Python 的实际安装位置进行修改。以下是在不同操作系统中查找 Python 路径的方法：
+>
+> **Linux/macOS**：
+> 在终端中运行以下命令：
+> ```bash
+> which python3
+> ```
+> 或
+> ```bash
+> which python
+> ```
+>
+> **Windows**：
+> 在命令提示符(CMD)中运行：
+> ```cmd
+> where python
+> ```
+> 或在 PowerShell 中运行：
+> ```powershell
+> (Get-Command python).Path
+> ```
+>
+> 确保使用完整的路径替换配置中的 `/usr/local/bin/python`，例如 Windows 上可能是 `C:\Python39\python.exe`
 
-#### Claude 配置
-在 Claude 配置中添加：
-
-使用 pip 安装时的配置：
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "python",
-            "args": [
-                "-m",
-                "phone_mcp"
-            ]
-        }
-    }
-}
-```
-
-使用 uv 安装时的配置：
-```json
-{
-    "mcpServers": {
-        "phone-mcp": {
-            "command": "uvx",
-            "args": [
-                "phone-mcp"
-            ]
-        }
-    }
-}
-```
+> **注意**：对于 Cursor，请将此配置放在 `~/.cursor/mcp.json` 文件中
 
 使用方法：
-- 在 Claude 对话中直接使用命令，例如：
+- 在 AI 助手对话中直接使用命令，例如：
   ```
    帮我给联系人hao打电话
   ```
