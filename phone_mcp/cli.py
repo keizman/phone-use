@@ -63,9 +63,9 @@ def format_json_output(json_str: str, pretty: bool = True) -> str:
                     return f"✅ {data.get('message', 'Operation successful')}"
                 else:
                     return f"❌ {data.get('message', 'Operation failed')}"
-            # Return prettified JSON
+            # Return prettified JSON with Unicode support
             return json.dumps(data, indent=2, ensure_ascii=False)
-        return json_str
+        return json.dumps(data, ensure_ascii=False)
     except:
         # If not JSON, return original string
         return json_str
@@ -1005,6 +1005,11 @@ async def screen_interact(args):
         elif args.action == "swipe" and result_data.get("status") == "success":
             print(f"SUCCESS: Swiped from ({params.get('x1', 0)}, {params.get('y1', 0)}) to ({params.get('x2', 0)}, {params.get('y2', 0)})")
         
+        elif args.action == "text" and result_data.get("status") == "success":
+            # Handle text input success case
+            content = params.get("content", "")
+            print(f"SUCCESS: {result_data.get('message', f'Input text: {content}')}")
+            
         elif args.action == "scroll" and result_data.get("status") == "success":
             print(f"SUCCESS: Found element '{params.get('value', '')}' after scrolling {result_data.get('swipes_performed', 0)} times")
             if result_data.get("element"):

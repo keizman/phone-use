@@ -7,6 +7,13 @@ import json
 import re
 from ..core import run_command, check_device_connection
 import logging
+import urllib.parse
+try:
+    from pypinyin import pinyin, Style
+    HAS_PINYIN = True
+except ImportError:
+    HAS_PINYIN = False
+    logging.warning("pypinyin module not found. Chinese to pinyin conversion will be disabled.")
 
 logger = logging.getLogger(__name__)
 
@@ -177,11 +184,32 @@ async def press_key(keycode: str):
         return f"Failed to press key: {output}"
 
 
+def is_chinese(text):
+    """检测文本是否包含中文字符"""
+    return any('\u4e00' <= c <= '\u9fff' for c in text)
+
+
+def chinese_to_pinyin(text):
+    """将中文文本转换为带转义空格的拼音"""
+    if not HAS_PINYIN:
+        return text
+    
+    # 将中文转换为拼音列表
+    pin_list = pinyin(text, style=Style.NORMAL)
+    # 将列表展平为字符串，使用转义空格连接
+    pin_str = "\\ ".join([item[0] for item in pin_list])
+    logger.info(f"已将中文'{text}'转换为拼音: '{pin_str}'")
+    return pin_str
+
+
 async def input_text(text: str):
     """Input text on the device at the current focus.
 
     Args:
-        text (str): Text to input
+        text (str): Text to input. For Chinese characters, use pinyin instead
+                   (e.g. "yu\\ tian" for "雨天") with escaped spaces.
+                   Direct Chinese character input may fail on some devices.
+                   Chinese characters will be automatically converted to pinyin.
 
     Returns:
         str: Success or error message
@@ -191,37 +219,76 @@ async def input_text(text: str):
     if "ready" not in connection_status:
         return connection_status
 
+    original_text = text
+    # 检测是否包含中文字符，如果包含则尝试转换为拼音
+    if is_chinese(text):
+        if HAS_PINYIN:
+            logger.info(f"检测到中文字符，正在自动转换为拼音：{text}")
+            text = chinese_to_pinyin(text)
+            logger.info(f"中文转换为拼音结果：{text}")
+        else:
+            logger.warning(f"检测到中文字符，但未安装pypinyin模块，无法自动转换：{text}")
+            return json.dumps({
+                "status": "error", 
+                "message": f"Chinese characters detected but pypinyin module is not installed. Please install it with 'pip install pypinyin' or use pinyin directly."
+            }, ensure_ascii=False)
+
     # Method 1: Try with the standard input text command first
-    # Don't escape characters - let the shell handle it
-    cmd = f'adb shell input text "{text}"'
+    # Need to properly escape special characters for the shell
+    escaped_text = text.replace('"', '\\"')
+    cmd = f'adb shell input text "{escaped_text}"'
     success, output = await run_command(cmd)
 
     # If successful, return success
     if success:
-        return json.dumps({"status": "success", "message": f"Successfully input text: '{text}'"})
+        success_msg = f"Successfully input text: '{original_text}'"
+        if original_text != text:
+            success_msg += f" (converted to pinyin: '{text}')"
+        return json.dumps({"status": "success", "message": success_msg}, ensure_ascii=False)
     
-    # Method 2: If Method 1 fails, try with individual character input
+    # Method 2: If Method 1 fails, try with Android's URI encoding for text input
+    # This is better for handling special characters including CJK characters
+    logger.info(f"Standard text input failed: {output}. Trying URI encoding method.")
+    
+    try:
+        # URL encode the text to handle special characters properly
+        encoded_text = urllib.parse.quote(text)
+        uri_cmd = f'adb shell am broadcast -a ADB_INPUT_TEXT --es msg "{encoded_text}"'
+        uri_success, uri_output = await run_command(uri_cmd)
+        
+        if uri_success:
+            success_msg = f"Successfully input text (URI encoded): '{original_text}'"
+            if original_text != text:
+                success_msg += f" (converted to pinyin: '{text}')"
+            return json.dumps({"status": "success", "message": success_msg}, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"URI encoding method failed: {str(e)}. Trying character-by-character method.")
+    
+    # Method 3: If Method 2 fails, try with individual character input
     # This is slower but more reliable for special characters
-    logger.info(f"Standard text input failed: {output}. Trying character-by-character method.")
-    
     try:
         # Input each character individually
         for char in text:
             if char == ' ':
                 char_cmd = "adb shell input keyevent 62"  # Space keycode
             else:
-                char_cmd = f'adb shell input text "{char}"'
+                # Escape any quotes in the character
+                escaped_char = char.replace('"', '\\"')
+                char_cmd = f'adb shell input text "{escaped_char}"'
             
             char_success, char_output = await run_command(char_cmd)
             if not char_success:
                 logger.warning(f"Failed to input character '{char}': {char_output}")
-                # Add a small delay between characters
-                await asyncio.sleep(0.1)
+            # Add a small delay between characters
+            await asyncio.sleep(0.2)
         
-        return json.dumps({"status": "success", "message": f"Successfully input text (char-by-char): '{text}'"})
+        success_msg = f"Successfully input text (char-by-char): '{original_text}'"
+        if original_text != text:
+            success_msg += f" (converted to pinyin: '{text}')"
+        return json.dumps({"status": "success", "message": success_msg}, ensure_ascii=False)
     
     except Exception as e:
-        # Method 3: Last resort - try using ADB keyevent codes for each character
+        # Method 4: Last resort - try using ADB keyevent codes for each character
         logger.warning(f"Character-by-character input failed: {str(e)}. Trying keyevent method.")
         try:
             for char in text:
@@ -235,17 +302,21 @@ async def input_text(text: str):
                     keycode = 29 + (ord(char.lower()) - ord('a'))  # a-z keys
                 else:
                     # Skip unsupported characters
+                    logger.warning(f"Unsupported character '{char}' in keyevent method")
                     continue
                 
                 key_cmd = f"adb shell input keyevent {keycode}"
                 await run_command(key_cmd)
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.2)
             
-            return json.dumps({"status": "success", "message": f"Successfully input text (keyevent): '{text}'"})
+            success_msg = f"Successfully input text (keyevent): '{original_text}'"
+            if original_text != text:
+                success_msg += f" (converted to pinyin: '{text}')"
+            return json.dumps({"status": "success", "message": success_msg}, ensure_ascii=False)
         except Exception as e:
-            return json.dumps({"status": "error", "message": f"All text input methods failed: {str(e)}"})
+            return json.dumps({"status": "error", "message": f"All text input methods failed: {str(e)}"}, ensure_ascii=False)
     
-    return json.dumps({"status": "error", "message": f"Failed to input text: {output}"})
+    return json.dumps({"status": "error", "message": f"Failed to input text: {output}"}, ensure_ascii=False)
 
 
 async def open_url(url: str):

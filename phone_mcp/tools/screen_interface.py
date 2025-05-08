@@ -498,7 +498,9 @@ async def interact_with_screen(action: str, params: Dict[str, Any]) -> str:
                 - keycode (str/int): Key to press (e.g., "back", "home", "enter", or keycode number)
             
             For "text" action:
-                - content (str): Text to input
+                - content (str): Text to input. For Chinese characters, use pinyin instead
+                              (e.g. "yu\\ tian" for "雨天") with escaped spaces.
+                              Direct Chinese character input may fail on some devices.
             
             For "find" action:
                 - method (str): Search method, one of: "text", "id", "content_desc", "class", "clickable"

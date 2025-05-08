@@ -10,6 +10,7 @@ setup(
         "mcp>=1.6.0",
         "aiohttp>=3.8.0",
         "asyncio>=3.4.3",
+        "pypinyin>=0.54.0",
     ],
     author="hao",
     author_email="hao@hao.com",
