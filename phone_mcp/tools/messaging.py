@@ -36,30 +36,55 @@ async def send_text_message(phone_number: str, message: str) -> str:
     # Escape single quotes in the message
     escaped_message = message.replace("'", "\\'")
 
-    # Open messaging app with the number and message, and auto-exit after sending
+    # Open messaging app with the number and message
     cmd = f"adb shell am start -a android.intent.action.SENDTO -d sms:{phone_number} --es sms_body '{escaped_message}' --ez exit_on_sent true"
     success, output = await run_command(cmd)
+    # Open messaging app with the number and message, and auto-exit after sending
 
     if not success:
         return f"Failed to open messaging app: {output}"
 
-    # Give the app time to open
+    # Give the app time to open (increased wait time)
+    await asyncio.sleep(3)
+
+    # Get screen dimensions
+    screen_cmd = "adb shell wm size"
+    screen_success, screen_output = await run_command(screen_cmd)
+
+    width, height = 1080, 2340  # Default values for common phones
+
+    if screen_success and "Physical size:" in screen_output:
+        try:
+            # Example output: "Physical size: 1080x2340"
+            size_str = screen_output.split("Physical size:")[1].strip()
+            width, height = map(int, size_str.split("x"))
+        except:
+            # If parsing fails, use default values
+            pass
+
+    # Try different methods to send the message
+
+    # Method 1: Try using coordinates to tap the send button (usually bottom right)
+    # For MIUI/Xiaomi phones, the send button is typically a green circle in the bottom right
+    send_x = int(width * 0.9)  # 90% to the right
+    send_y = int(height * 0.95)  # 95% down from top
+
+    tap_cmd = f"adb shell input tap {send_x} {send_y}"
+    tap_success, tap_output = await run_command(tap_cmd)
+
+    # Wait for the message to be sent
     await asyncio.sleep(2)
 
-    # Press right button to focus on send button (keyevent 22)
-    success1, output1 = await run_command("adb shell input keyevent 22")
-    if not success1:
-        return f"Failed to navigate to send button: {output1}"
+    # If tapping specific coordinates didn't work, try the original method
+    if not tap_success:
+        # Original method: Try using arrow keys to navigate to send button
+        # Press right button to focus on send button (keyevent 22)
+        await run_command("adb shell input keyevent 22")
+        # Press enter to send the message (keyevent 66)
+        await run_command("adb shell input keyevent 66")
+        await asyncio.sleep(1)
 
-    # Press enter to send the message (keyevent 66)
-    success2, output2 = await run_command("adb shell input keyevent 66")
-    if not success2:
-        return f"Failed to press send button: {output2}"
-
-    # Wait a moment for the message to be sent
-    await asyncio.sleep(1)
-
-    # In case auto-exit doesn't work, press BACK once
+    # In case auto-exit doesn't work, press BACK once to exit the messaging app
     await run_command("adb shell input keyevent 4")
 
     return f"Text message sent to {phone_number}"
