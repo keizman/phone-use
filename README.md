@@ -8,8 +8,8 @@
 ![play_mucic_x2](https://github.com/user-attachments/assets/58a39b26-6e8b-4f00-8073-3881f657aa5c)
 
 
-- Call Hao from the contacts. If he doesn't answer, send a text message telling him to come to Meeting Room 101.
-![call_sms_x2](https://github.com/user-attachments/assets/9a155e7c-6dde-4248-b499-0444f19448d0)
+- Install APK files and manage applications with comprehensive package management
+![package_management](https://github.com/user-attachments/assets/58a39b26-6e8b-4f00-8073-3881f657aa5c)
 
 
 [中文文档](README_zh.md)
@@ -29,7 +29,25 @@ pip install phone-mcp
 ```
 
 
+
 ### 🔧 Configuration
+
+#### start local file use python in cursor
+excute command to install dependency:
+```sh
+pip install -e .
+```
+
+```json
+          "phone-mcp": {
+            "command": "C:\\Application\\conda\\python.exe",
+            "args": [
+                "-m",
+                "phone_mcp"
+            ],
+            "cwd": "C:\\Download\\git\\uni\\phone-mcp\\"
+        }
+```
 
 #### AI Assistant Configuration
 Configure in your AI assistant configuration (Cursor, Trae, Claude, etc.):
@@ -101,12 +119,11 @@ Usage:
 
 ## 🎯 Key Features
 
-- 📞 **Call Functions**: Make calls, end calls, receive incoming calls
-- 💬 **Messaging**: Send and receive SMS, get raw messages
-- 👥 **Contacts**: Access phone contacts, create new contacts with automated UI interaction
+- 📦 **Package Management**: Install/uninstall APK files, list installed packages
+- 📁 **File Operations**: Push/pull files between device and computer
 - 📸 **Media**: Screenshots, screen recording, media control
 - 📱 **Apps**: Launch applications, launch specific activities with intents, list installed apps, terminate apps
-- 🔧 **System**: Window info, app shortcuts
+- 🔧 **System**: Window info, app shortcuts, navigate to home screen, open settings
 - 🗺️ **Maps**: Search POIs with phone numbers
 - 🖱️ **UI Interaction**: Tap, swipe, type text, press keys
 - 🔍 **UI Inspection**: Find elements by text, ID, class or description
@@ -114,6 +131,7 @@ Usage:
 - 🧠 **Screen Analysis**: Structured screen information and unified interaction
 - 🌐 **Web Browser**: Open URLs in device's default browser
 - 🔄 **UI Monitoring**: Monitor UI changes and wait for specific elements to appear or disappear
+- 🛠️ **App Management**: Clear app data, force stop apps, restart apps with cache clearing
 
 ## 🛠️ Requirements
 
@@ -132,33 +150,33 @@ phone-cli check
 phone-cli screen-interact find method=clickable
 ```
 
-### Communication
+### Package & File Management
 ```bash
-# Make a call
-phone-cli call 1234567890
+# Install APK file
+phone-cli adb-install /path/to/app.apk
 
-# End current call
-phone-cli hangup
+# Uninstall app by package name
+phone-cli adb-uninstall com.example.app
 
-# Send SMS
-phone-cli send-sms 1234567890 "Hello"
+# List installed packages
+phone-cli adb-list-packages
 
-# Get received messages (with pagination)
-phone-cli messages --limit 10
+# List packages with filter
+phone-cli adb-list-packages --filter "camera"
 
-# Get sent messages (with pagination)
-phone-cli sent-messages --limit 10
+# Pull file from device
+phone-cli adb-pull /sdcard/Download/file.txt ~/Downloads/
 
-# Get contacts (with pagination)
-phone-cli contacts --limit 20
-
-# Create a new contact with UI automation
-phone-cli create-contact "John Doe" "1234567890"
+# Push file to device
+phone-cli adb-push ~/Documents/file.pdf /sdcard/Documents/
 ```
 
-### Media & Apps
+### Media, Apps & System
 ```bash
-# Take screenshot
+# Take screenshot and save
+phone-cli take-screenshot-and-save ~/screenshots/screen.png
+
+# Take screenshot (legacy method)
 phone-cli screenshot
 
 # Record screen
@@ -196,6 +214,24 @@ phone-cli launch com.android.dialer/com.android.dialer.DialtactsActivity
 
 # Open URL in default browser
 phone-cli open-url google.com
+
+# Clear app data
+phone-cli clear-app-data com.example.app
+
+# Force stop app
+phone-cli force-stop-app com.example.app
+
+# Go to home screen
+phone-cli go-to-home
+
+# Open device settings
+phone-cli open-settings
+
+# Clear app data and restart
+phone-cli clear-cache-and-restart com.example.app
+
+# Force restart app
+phone-cli force-restart-app com.example.app
 ```
 
 ### Screen Analysis & Interaction
@@ -287,20 +323,29 @@ The plugin provides multiple ways to launch apps and activities:
 
 > **Note**: If you encounter issues with the `app` or `open_app` commands, always use the `launch` command with the full component name (package/activity) for the most reliable operation.
 
-### Contact Creation with UI Automation
+### Advanced Package Management
 
-The plugin provides a way to create contacts through UI interaction:
+The plugin provides comprehensive package management capabilities:
 
 ```bash
-# Create a new contact with UI automation
-phone-cli create-contact "John Doe" "1234567890"
+# Install multiple APK files from directory
+phone-cli adb-install /path/to/apk/directory/
+
+# Install with specific device ID (when multiple devices connected)
+phone-cli adb-install /path/to/app.apk --device-id emulator-5554
+
+# Pull entire directory
+phone-cli adb-pull /sdcard/DCIM/ ~/Pictures/
+
+# Clear app data and restart with one command
+phone-cli clear-cache-and-restart com.example.app
 ```
 
-This command will:
-1. Open the contacts app
-2. Navigate to the contact creation interface
-3. Fill in the name and phone number fields
-4. Save the contact automatically
+Advanced app management:
+1. **Clear Data**: Completely wipe app data and cache
+2. **Force Operations**: Reliable stop/start cycles
+3. **System Navigation**: Direct access to home screen and settings
+4. **Bulk Operations**: Work with multiple files and directories
 
 ### Screen-Based Automation
 
@@ -400,16 +445,126 @@ async def analyze_screen(include_screenshot: bool = False, max_elements: int = 5
   - `max_elements`: Maximum number of UI elements to process
 - **Returns:** JSON string with detailed screen analysis
 
-#### create_contact
+#### adb_install
 ```python
-async def create_contact(name: str, phone: str) -> str:
-    """Create a new contact with the given name and phone number"""
+async def adb_install(path: str, device_id: Optional[str] = None) -> str:
+    """Install APK files on the device"""
 ```
 - **Parameters:**
-  - `name`: The contact's full name
-  - `phone`: The phone number for the contact
-- **Returns:** JSON string with operation result
-- **Location:** This function is found in the 'contacts.py' module and implements UI automation to create contacts
+  - `path`: Path to APK file or directory containing APK files
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with installation result
+
+#### adb_uninstall
+```python
+async def adb_uninstall(package_name: str, device_id: Optional[str] = None) -> str:
+    """Uninstall an application from the device"""
+```
+- **Parameters:**
+  - `package_name`: Package name of the application to uninstall
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with uninstall result
+
+#### adb_list_packages
+```python
+async def adb_list_packages(device_id: Optional[str] = None, filter_text: Optional[str] = None) -> str:
+    """List all installed packages on the device"""
+```
+- **Parameters:**
+  - `device_id`: Specific device ID to target (optional)
+  - `filter_text`: Optional filter to search for specific packages
+- **Returns:** JSON string with list of packages
+
+#### adb_pull
+```python
+async def adb_pull(remote_path: str, local_path: str, device_id: Optional[str] = None) -> str:
+    """Pull files from device to local system"""
+```
+- **Parameters:**
+  - `remote_path`: Path to the file or directory on the device
+  - `local_path`: Path where to save the file(s) locally
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with pull result
+
+#### adb_push
+```python
+async def adb_push(local_path: str, remote_path: str, device_id: Optional[str] = None) -> str:
+    """Push files from local system to device"""
+```
+- **Parameters:**
+  - `local_path`: Path to the local file or directory
+  - `remote_path`: Path on the device where to push the file(s)
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with push result
+
+#### take_screenshot_and_save
+```python
+async def take_screenshot_and_save(output_path: str, device_id: Optional[str] = None, format_type: str = "png") -> str:
+    """Take a screenshot and save it to local system"""
+```
+- **Parameters:**
+  - `output_path`: Path where to save the screenshot
+  - `device_id`: Specific device ID to target (optional)
+  - `format_type`: Image format (png, jpg, webp, etc.)
+- **Returns:** JSON string with screenshot result
+
+#### clear_app_data
+```python
+async def clear_app_data(package_name: str, device_id: Optional[str] = None) -> str:
+    """Clear all data for a specific application"""
+```
+- **Parameters:**
+  - `package_name`: Package name of the application to clear data for
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with clear result
+
+#### force_stop_app
+```python
+async def force_stop_app(package_name: str, device_id: Optional[str] = None) -> str:
+    """Force stop a running application"""
+```
+- **Parameters:**
+  - `package_name`: Package name of the application to force stop
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with force stop result
+
+#### go_to_home
+```python
+async def go_to_home(device_id: Optional[str] = None) -> str:
+    """Navigate to the home screen"""
+```
+- **Parameters:**
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with navigation result
+
+#### open_settings
+```python
+async def open_settings(device_id: Optional[str] = None) -> str:
+    """Open the Android Settings app"""
+```
+- **Parameters:**
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with settings open result
+
+#### clear_cache_and_restart
+```python
+async def clear_cache_and_restart(package_name: str, device_id: Optional[str] = None) -> str:
+    """Clear app data and automatically restart the application"""
+```
+- **Parameters:**
+  - `package_name`: Package name of the application to clear and restart
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with clear and restart result
+
+#### force_restart_app
+```python
+async def force_restart_app(package_name: str, device_id: Optional[str] = None) -> str:
+    """Force stop and then restart an application"""
+```
+- **Parameters:**
+  - `package_name`: Package name of the application to force restart
+  - `device_id`: Specific device ID to target (optional)
+- **Returns:** JSON string with force restart result
 
 #### launch_app_activity
 ```python
@@ -438,63 +593,47 @@ async def launch_intent(intent_action: str, intent_type: Optional[str] = None, e
 
 Apache License, Version 2.0
 
-# Contact Creation Tool
+## 🔧 Available MCP Tools
 
-This tool provides a simple way to create contacts on an Android device using ADB.
+The following tools are available through the MCP interface:
 
-## Prerequisites
+### Core Tools
+- `check_device_connection` - Check if Android device is connected via ADB
+- `start_screen_recording` - Start recording device screen
+- `play_media` - Play media files on device
+- `get_current_window` - Get information about current window
+- `get_app_shortcuts` - Get app shortcuts with pagination
+- `launch_app_activity` - Launch app using package name and activity
+- `list_installed_apps` - List installed applications with pagination
+- `terminate_app` - Force stop an application
+- `open_url` - Open URL in device's default browser
 
-- Python 3.x
+### Screen Interface Tools
+- `analyze_screen` - Analyze current screen with structured information
+- `interact_with_screen` - Unified interface for screen interactions
+- `mcp_monitor_ui_changes` - Monitor UI changes and wait for elements
+
+### ADB Management Tools
+- `adb_install` - Install APK files on device
+- `adb_uninstall` - Uninstall applications from device
+- `adb_list_packages` - List all installed packages
+- `adb_pull` - Pull files from device to local system
+- `adb_push` - Push files from local system to device
+- `take_screenshot_and_save` - Take screenshot and save to file
+- `clear_app_data` - Clear all data for a specific application
+- `force_stop_app` - Force stop a running application
+- `go_to_home` - Navigate to device home screen
+- `open_settings` - Open Android Settings app
+- `clear_cache_and_restart` - Clear app data and restart application
+- `force_restart_app` - Force stop and restart application
+
+### Map Tools (if API key configured)
+- `get_phone_numbers_from_poi` - Search nearby POIs with phone numbers
+
+## 📱 Device Requirements
+
+- Android device with USB debugging enabled
 - ADB (Android Debug Bridge) installed and configured
-- Android device connected and authorized for ADB
-
-## Usage
-
-### Basic Usage
-
-Simply run the script:
-
-```bash
-python create_contact.py
-```
-
-This will create a contact with default values:
-- Account name: "你的账户名"
-- Account type: "com.google"
-
-### Advanced Usage
-
-You can provide custom account name and type using a JSON string:
-
-```bash
-python create_contact.py '{"account_name": "your_account", "account_type": "com.google"}'
-```
-
-### Output
-
-The script outputs a JSON object with:
-- `success`: boolean indicating if the operation was successful
-- `message`: any output or error message from the command
-
-Example success output:
-```json
-{"success": true, "message": ""}
-```
-
-## Error Handling
-
-- If ADB is not available or device is not connected, the script will return an error
-- Invalid JSON input will result in an error message
-- Any ADB command errors will be captured and returned in the message field
-
-## Notes
-
-- Make sure your Android device is connected and authorized for ADB use
-- The device screen should be unlocked when running the command
-- Some devices might require additional permissions to modify contacts
-
-### Apps & Shortcuts
-```bash
-# Get app shortcuts (with pagination)
-phone-cli shortcuts --package "com.example.app"
-```
+- Device connected via USB or network ADB
+- Device screen unlocked for UI operations
+- Proper ADB permissions configured

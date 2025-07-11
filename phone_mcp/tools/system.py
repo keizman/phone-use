@@ -14,9 +14,23 @@ async def get_current_window():
 
     Retrieves details about the currently focused window, active application,
     and foreground activities on the device using multiple methods for reliability.
+    
+    **Common Usage Patterns:**
+    - Get current app's package name for targeted operations
+    - Monitor which app is currently active
+    - Chain with other tools like clear_app_data() or force_stop_app()
+    
+    **Workflow Example:**
+    1. Use get_current_window() to get package_name
+    2. Use clear_app_data(package_name) to clear cache
+    3. Use launch_app_activity(package_name) to restart app
 
     Returns:
-        str: JSON string with current window details or error message
+        str: JSON string with current window details including:
+             - package_name: Current app's package identifier
+             - current_focus: Currently focused window
+             - activity_name: Current activity name
+             - screen_state: Device screen state (on/off)
     """
     # Check for connected device
     from ..core import check_device_connection
@@ -163,9 +177,21 @@ async def launch_app_activity(package_component=None, action=None, extra_args=No
     This function starts an application by launching a specific activity component.
     It effectively launches the app and can be used in conjunction with get_app_shortcuts 
     to discover available activities, but does not require it as a prerequisite.
+    
+    **Common Usage Patterns:**
+    - Start apps after clearing cache/data
+    - Launch specific app activities
+    - Restart apps that were force-stopped
+    - Part of app management workflows
+    
+    **Workflow Integration:**
+    - Often used after clear_app_data() or force_stop_app()
+    - Can be chained with get_current_window() to verify launch
+    - Use with just package name (e.g., "com.example.app") for main activity
 
     Args:
         package_component (str): App component in format "package/activity" (e.g. "com.example.app/.MainActivity")
+                               OR just package name (e.g. "com.example.app") for main activity
                                This is the primary way to specify which app and activity to launch
         action (str, optional): Intent action to use (e.g. "android.intent.action.VIEW")
         extra_args (str, optional): Additional intent arguments to pass (e.g. "-d 'content://contacts/people/'")
@@ -176,6 +202,9 @@ async def launch_app_activity(package_component=None, action=None, extra_args=No
     Example:
         To launch the main activity of an app:
         launch_app_activity("com.example.app/.MainActivity")
+        
+        To launch just by package name:
+        launch_app_activity("com.example.app")
         
         To launch a specific activity with an action and data:
         launch_app_activity("com.android.browser/.BrowserActivity", 

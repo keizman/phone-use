@@ -12,11 +12,8 @@ import logging
 import time
 from typing import Dict, Any, Optional
 from .core import check_device_connection
-from .tools.call import call_number, end_call, receive_incoming_call
-from .tools.messaging import send_text_message, receive_text_messages, get_sent_messages
 from .tools.media import take_screenshot, start_screen_recording, play_media
-from .tools.apps import set_alarm, list_installed_apps, terminate_app, launch_app_activity
-from .tools.contacts import get_contacts, create_contact
+from .tools.apps import list_installed_apps, terminate_app, launch_app_activity
 from .tools.system import get_current_window, get_app_shortcuts
 from .tools.system import launch_app_activity as launch_activity_system
 from .tools.maps import get_phone_numbers_from_poi
@@ -38,6 +35,12 @@ from .tools.ui_enhanced import (
 )
 from .tools.ui_monitor import monitor_ui_changes, mcp_monitor_ui_changes
 from .tools.screen_interface import analyze_screen, interact_with_screen
+# Import additional ADB tools
+from .tools.adb_tools import (
+    adb_install, adb_uninstall,  adb_pull, adb_push,
+    take_screenshot_and_save, clear_app_data, force_stop_app, go_to_home, open_settings,
+    clear_cache_and_restart, force_restart_app
+)
 
 # Import map-related functionality, including environment variable check
 try:

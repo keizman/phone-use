@@ -165,6 +165,7 @@ async def get_screen_info(include_screenshot: bool = True, max_elements: int = 1
         
         # Get clickable elements
         clickable_result = await find_clickable_elements()
+
         clickable_data = json.loads(clickable_result)
         clickable_elements = clickable_data.get("elements", []) if clickable_data.get("status") == "success" else []
         

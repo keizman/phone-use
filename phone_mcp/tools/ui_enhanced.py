@@ -125,7 +125,7 @@ async def find_clickable_elements() -> str:
     """
     # Get the full UI dump
     dump_response = await dump_ui()
-
+    print(dump_response)
     try:
         dump_data = json.loads(dump_response)
 

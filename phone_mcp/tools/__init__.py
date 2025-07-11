@@ -16,16 +16,21 @@ from . import interactions
 from . import ui
 from . import ui_enhanced
 from . import ui_monitor
+from . import adb_tools
 
-from .call import call_number, end_call, receive_incoming_call, check_device_connection
-from .messaging import send_text_message, receive_text_messages, get_sent_messages
 from .media import take_screenshot, start_screen_recording, play_media
-from .apps import set_alarm, list_installed_apps, terminate_app, launch_app_activity, launch_intent
-from .contacts import get_contacts, create_contact
+from .apps import list_installed_apps, terminate_app, launch_app_activity, launch_intent
 from .system import get_current_window, get_app_shortcuts
 
 # Basic interactions
 from .interactions import tap_screen, swipe_screen, press_key, input_text, open_url
+
+# Additional ADB tools
+from .adb_tools import (
+    adb_install, adb_uninstall,  adb_pull, adb_push,
+    take_screenshot_and_save, clear_app_data, force_stop_app, go_to_home, open_settings,
+    clear_cache_and_restart, force_restart_app
+)
 
 # Basic UI inspection
 from .ui import dump_ui, find_element_by_text, find_element_by_id, tap_element
@@ -53,21 +58,11 @@ except ImportError:
 
 # Basic tools list
 __all__ = [
-    "call_number",
-    "end_call",
-    "receive_incoming_call",
-    "check_device_connection",
-    "send_text_message",
-    "receive_text_messages",
-    "get_sent_messages",
     "take_screenshot",
     "start_screen_recording",
     "play_media",
-    "set_alarm",
     "list_installed_apps",
     "terminate_app",
-    "get_contacts",
-    "create_contact",
     "get_current_window",
     "get_app_shortcuts",
     "launch_app_activity",
@@ -86,6 +81,19 @@ __all__ = [
     "find_clickable_elements",
     "wait_for_element",
     "scroll_to_element",
+    # Additional ADB tools
+    "adb_install",
+    "adb_uninstall",
+    "adb_list_packages",
+    "adb_pull",
+    "adb_push",
+    "take_screenshot_and_save",
+    "clear_app_data",
+    "force_stop_app",
+    "go_to_home",
+    "open_settings",
+    "clear_cache_and_restart",
+    "force_restart_app",
 ]
 
 # Only add map functionality if there is a valid API key

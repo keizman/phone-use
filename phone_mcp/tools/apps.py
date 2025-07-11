@@ -10,7 +10,7 @@ logger = logging.getLogger("phone_mcp")
 
 
 async def list_installed_apps(
-    only_system=False, only_third_party=False, page=1, page_size=10, basic=True
+    only_system=False, only_third_party=True, page=1, page_size=10, basic=True
 ):
     """List installed applications on the device with pagination support.
 
