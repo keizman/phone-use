@@ -205,13 +205,42 @@ async def phone_app_control(
             return json.dumps({"status": "error", "message": connection_status})
         
         if action == "launch" and app_name:
-            # Launch app by name
-            cmd = f'adb shell monkey -p $(adb shell pm list packages | grep -i "{app_name.lower()}" | head -1 | cut -d: -f2) -c android.intent.category.LAUNCHER 1'
+            # Launch app by name - fixed to avoid shell command substitution issues
+            # First, get the package list
+            list_cmd = "adb shell pm list packages"
+            success, package_list = await run_command(list_cmd)
+            
+            if not success:
+                return json.dumps({
+                    "status": "error",
+                    "action": "launch",
+                    "app_name": app_name,
+                    "output": "Failed to get package list"
+                })
+            
+            # Find package containing the app name
+            target_package = None
+            for line in package_list.strip().split('\n'):
+                if ':' in line and app_name.lower() in line.lower():
+                    target_package = line.split(':')[1].strip()
+                    break
+            
+            if not target_package:
+                return json.dumps({
+                    "status": "error",
+                    "action": "launch",
+                    "app_name": app_name,
+                    "output": f"Package not found for app: {app_name}"
+                })
+            
+            # Launch the app using the found package
+            cmd = f'adb shell monkey -p {target_package} -c android.intent.category.LAUNCHER 1'
             success, output = await run_command(cmd)
             return json.dumps({
                 "status": "success" if success else "error",
                 "action": "launch",
                 "app_name": app_name,
+                "package": target_package,
                 "output": output
             })
         

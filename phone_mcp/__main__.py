@@ -11,7 +11,7 @@ from .tools.omniparser_tools import (
     omniparser_tap_element_by_uuid,
     omniparser_execute_action_by_uuid
 )
-from .tools.prompt_engineering import get_task_guidance
+from .tools.prompt_engineering import get_task_guidance, get_tv_app_guidance
 
 # Common Function Layer (★★)
 from .tools.unified_tools import (
@@ -34,6 +34,7 @@ mcp.tool()(omniparser_analyze_screen)       # ★★★★ PRIMARY VISUAL ANALYS
 mcp.tool()(omniparser_tap_element_by_uuid)  # ★★★★ PRECISION INTERACTION
 mcp.tool()(omniparser_execute_action_by_uuid) # ★★★ ADVANCED INTERACTIONS
 mcp.tool()(get_task_guidance)               # ★★★ AI TASK ORCHESTRATION
+mcp.tool()(get_tv_app_guidance)             # ★★★ TV APP AUTOMATION GUIDANCE
 
 # Register Common Function Tools (★★)
 mcp.tool()(phone_screen_interact)           # ★★★ UNIFIED SCREEN INTERACTION

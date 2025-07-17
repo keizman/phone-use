@@ -98,6 +98,19 @@ BIAS CORRECTION GUIDANCE:
 - This adjusts the click position upward to account for titles appearing below content
 - Common keywords that require bias: program, video, show, episode, 节目, 视频, 电视剧, 电影
 
+TV/VIDEO APP SPECIFIC GUIDANCE:
+- For com.unitvnet.tvod app: Always check for modal dialogs/overlays first
+- 四宫格跳转频道: Look for grid layout with channel options, use bias=True
+- Modal dialog handling: Look for "close", "关闭", "返回", "确定" buttons
+- If element not found: Try dismissing modals with back button or close buttons first
+- Channel navigation: Grid patterns usually require bias correction for proper targeting
+
+MODAL DIALOG HANDLING:
+- Always check for overlay dialogs before main interaction
+- Common close patterns: "×", "close", "关闭", "返回", "cancel", "取消"
+- If target element not found, dismiss dialogs first then retry
+- Use back button (phone_system_control with action='back') as fallback
+
 REMEMBER: Check element interactivity before attempting to tap, and use bias for media content.
 """
 
@@ -409,6 +422,75 @@ async def get_task_guidance(task_description: str, task_type: Optional[str] = No
         return json.dumps({
             "status": "error",
             "message": f"Failed to get task guidance: {str(e)}"
+        })
+
+
+async def get_tv_app_guidance(
+    app_package: str = "com.unitvnet.tvod",
+    target_action: str = "四宫格跳转频道"
+) -> str:
+    """
+    ★★★ TV APP AUTOMATION GUIDANCE - Specialized guidance for TV/video app interactions
+    
+    Provides specific guidance for TV app automation including modal dialog handling.
+    
+    Args:
+        app_package: Package name of the TV app (default: com.unitvnet.tvod)
+        target_action: Target action to perform (default: 四宫格跳转频道)
+        
+    Returns:
+        JSON with TV app specific guidance and workflow
+    """
+    try:
+        tv_guidance = {
+            "status": "success",
+            "app_package": app_package,
+            "target_action": target_action,
+            "recommended_workflow": [
+                "1. First launch app with: phone_app_control(action='launch', app_name='tvod')",
+                "2. Wait for app to load, then analyze screen: omniparser_analyze_screen()",
+                "3. Check for modal dialogs/overlays and dismiss if present",
+                "4. Look for target element with: omniparser_find_elements_by_content()",
+                "5. If element not found, try dismissing modals with back button",
+                "6. Use bias=True when tapping on grid/channel content",
+                "7. Verify action succeeded with screen analysis"
+            ],
+            "modal_dialog_handling": {
+                "detection_keywords": ["close", "关闭", "返回", "确定", "取消", "×"],
+                "dismissal_strategy": [
+                    "Look for close buttons with omniparser_find_elements_by_content()",
+                    "Try tapping close buttons with omniparser_tap_element_by_uuid()",
+                    "Use back button as fallback: phone_system_control(action='back')",
+                    "Retry main action after dialog dismissal"
+                ]
+            },
+            "grid_interaction_tips": {
+                "bias_correction": "Always use bias=True for 四宫格跳转频道 elements",
+                "grid_detection": "Look for grid layout with multiple channel options",
+                "targeting_strategy": "Use content-based finding rather than coordinate guessing"
+            },
+            "troubleshooting": {
+                "element_not_found": [
+                    "Check for overlay dialogs blocking the element",
+                    "Dismiss any modal dialogs first",
+                    "Try scrolling to reveal more content",
+                    "Use omniparser_find_interactive_elements() to see all clickable items"
+                ],
+                "app_not_responding": [
+                    "Use phone_system_control(action='back') to navigate back",
+                    "Restart app if needed: phone_app_control(action='terminate') then launch again",
+                    "Check device connection: phone_device_info(action='check_connection')"
+                ]
+            }
+        }
+        
+        return json.dumps(tv_guidance, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        logger.error(f"TV app guidance error: {e}")
+        return json.dumps({
+            "status": "error",
+            "message": str(e)
         })
 
 

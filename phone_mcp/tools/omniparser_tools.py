@@ -18,7 +18,7 @@ logger = logging.getLogger("phone_mcp")
 
 
 async def omniparser_analyze_screen(
-    server_url: str = "http://100.122.57.128:9333",
+    server_url: str = "http://172.27.1.113:9333",
     use_paddleocr: Optional[bool] = None,
     use_cache: bool = True
 ) -> str:
@@ -40,10 +40,9 @@ async def omniparser_analyze_screen(
     - UUID-based element tracking for reliable automation
     
     Args:
-        server_url: Omniparser server URL (default: http://100.122.57.128:9333)
         use_paddleocr: True for PaddleOCR (all text), False for YOLO only (icons), None for server default
         use_cache: Whether to use cached analysis results (default: True)
-        
+    
     Returns:
         JSON string with analysis results containing:
         - status: "success" or "error"
