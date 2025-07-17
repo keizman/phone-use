@@ -26,13 +26,25 @@ async def phone_screen_interact(
     text: Optional[str] = None,
     use_omniparser: bool = True,
     server_url: str = "http://100.122.57.128:9333",
-    bias: Optional[bool] = None
+    bias: Optional[bool] = None,
+    delay_seconds: float = 2.0
 ) -> str:
     """
-    **PRIMARY SCREEN INTERACTION TOOL** - Use this for all screen-based interactions
+    ★★★ UNIFIED SCREEN INTERACTION - Use when Omniparser unavailable OR for coordinate-based actions
     
-    Performs visual analysis and interaction with Android screen elements using Omniparser or coordinates.
-    This is the main tool for clicking, tapping, swiping, and inputting text on the screen.
+    **WHEN TO USE**: 
+    - When Omniparser server is unavailable (fallback mode)
+    - For coordinate-based interactions (swipe, scroll)
+    - For basic text input operations
+    - As secondary option after Omniparser tools
+    
+    **PRIORITY**: Use omniparser_analyze_screen + omniparser_tap_element_by_uuid first for precision
+    
+    **CAPABILITIES**:
+    - Visual analysis + interaction (when Omniparser available)
+    - Coordinate-based fallback interactions
+    - Text input with target field detection
+    - Gesture support (swipe, scroll, tap variants)
     
     Args:
         action: Action to perform: 'tap', 'long_press', 'double_tap', 'swipe', 'scroll', 'input_text', 'analyze_only'
@@ -42,6 +54,7 @@ async def phone_screen_interact(
         use_omniparser: Use visual element recognition (recommended: True)
         server_url: Omniparser server URL
         bias: Apply bias correction for media content (auto-detected if not specified)
+        delay_seconds: Delay after action operation in seconds (default: 2.0s for TV loading)
         
     Returns:
         JSON with interaction result and screen analysis
@@ -146,6 +159,10 @@ async def phone_screen_interact(
             success, output = await run_command(cmd)
             result["interaction"] = {"success": success, "output": output}
         
+        # Add delay after action operation for TV loading
+        if delay_seconds > 0 and action in ["tap", "long_press", "double_tap", "swipe", "scroll", "input_text"]:
+            await asyncio.sleep(delay_seconds)
+        
         return json.dumps(result)
         
     except Exception as e:
@@ -163,7 +180,7 @@ async def phone_app_control(
     activity_name: Optional[str] = None
 ) -> str:
     """
-    **APP MANAGEMENT TOOL** - Use for launching, stopping, and managing apps
+    ★★ APP MANAGEMENT - Use for all app lifecycle operations
     
     Controls Android applications - launch, terminate, list installed apps, and get app info.
     
@@ -275,7 +292,7 @@ async def phone_system_control(
     value: Optional[str] = None
 ) -> str:
     """
-    **SYSTEM CONTROL TOOL** - Use for device settings, navigation, and system operations
+    ★★ SYSTEM CONTROL - Use for device settings, navigation, and system operations
     
     Controls Android system functions - navigation keys, settings, home screen, notifications.
     
@@ -381,7 +398,7 @@ async def phone_file_operations(
     package_name: Optional[str] = None
 ) -> str:
     """
-    **FILE OPERATIONS TOOL** - Use for file transfers, app installation, and storage management
+    ★ FILE OPERATIONS - Use for file transfers, app installation, and storage management
     
     Manages files and apps - install/uninstall APKs, push/pull files, take screenshots.
     
@@ -512,7 +529,7 @@ async def phone_communication(
     contact_name: Optional[str] = None
 ) -> str:
     """
-    **COMMUNICATION TOOL** - Use for calls, SMS, and contact management
+    ★★ COMMUNICATION - Use for calls, SMS, and contact management
     
     Manages phone communications - make calls, send SMS, manage contacts.
     
@@ -618,7 +635,7 @@ async def phone_media_control(
     output_path: Optional[str] = None
 ) -> str:
     """
-    **MEDIA CONTROL TOOL** - Use for media playback, recording, and camera functions
+    ★ MEDIA CONTROL - Use for media playback, recording, and camera functions
     
     Controls media functions - play audio/video, screen recording, camera operations.
     
@@ -727,7 +744,7 @@ async def phone_web_browser(
     bookmark_title: Optional[str] = None
 ) -> str:
     """
-    **WEB BROWSER TOOL** - Use for web browsing, search, and URL operations
+    ★ WEB BROWSER - Use for web browsing, search, and URL operations
     
     Controls web browser functions - open URLs, search, bookmarks, navigation.
     
@@ -820,7 +837,7 @@ async def phone_device_info(
     info_type: Optional[str] = None
 ) -> str:
     """
-    **DEVICE INFO TOOL** - Use for device status, connection, and diagnostic information
+    ★ DEVICE INFO - Use for device status, connection, and diagnostic information
     
     Retrieves device information - connection status, system info, battery, network status.
     

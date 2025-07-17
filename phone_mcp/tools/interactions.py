@@ -64,12 +64,13 @@ async def get_screen_size():
     )
 
 
-async def tap_screen(x: int, y: int):
+async def tap_screen(x: int, y: int, delay_seconds: float = 2.0):
     """Tap on the specified coordinates on the device screen.
 
     Args:
         x (int): X-coordinate
         y (int): Y-coordinate
+        delay_seconds (float): Delay after tap in seconds (default: 2.0s for TV loading)
 
     Returns:
         str: Success or error message
@@ -96,13 +97,17 @@ async def tap_screen(x: int, y: int):
     cmd = f"adb shell input tap {x} {y}"
     success, output = await run_command(cmd)
 
+    # Add delay after tap operation for TV loading
+    if delay_seconds > 0:
+        await asyncio.sleep(delay_seconds)
+
     if success:
         return f"Successfully tapped at coordinates ({x}, {y})"
     else:
         return f"Failed to tap screen: {output}"
 
 
-async def swipe_screen(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300):
+async def swipe_screen(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300, delay_seconds: float = 2.0):
     """Perform a swipe gesture on the device screen.
 
     Args:
@@ -111,6 +116,7 @@ async def swipe_screen(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 30
         x2 (int): Ending X-coordinate
         y2 (int): Ending Y-coordinate
         duration_ms (int): Duration of swipe in milliseconds (default: 300)
+        delay_seconds (float): Delay after swipe in seconds (default: 2.0s for TV loading)
 
     Returns:
         str: Success or error message
@@ -127,18 +133,23 @@ async def swipe_screen(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 30
     cmd = f"adb shell input swipe {x1} {y1} {x2} {y2} {duration_ms}"
     success, output = await run_command(cmd)
 
+    # Add delay after swipe operation for TV loading
+    if delay_seconds > 0:
+        await asyncio.sleep(delay_seconds)
+
     if success:
         return f"Successfully swiped from ({x1}, {y1}) to ({x2}, {y2}) over {duration_ms}ms"
     else:
         return f"Failed to perform swipe: {output}"
 
 
-async def press_key(keycode: str):
+async def press_key(keycode: str, delay_seconds: float = 2.0):
     """Press a key on the device using Android keycode.
 
     Args:
         keycode (str): Android keycode to press (e.g., "KEYCODE_HOME", "KEYCODE_BACK")
                       Can also be an integer keycode value.
+        delay_seconds (float): Delay after key press in seconds (default: 2.0s for TV loading)
 
     Returns:
         str: Success or error message
@@ -178,6 +189,10 @@ async def press_key(keycode: str):
     cmd = f"adb shell input keyevent {actual_keycode}"
     success, output = await run_command(cmd)
 
+    # Add delay after key press operation for TV loading
+    if delay_seconds > 0:
+        await asyncio.sleep(delay_seconds)
+
     if success:
         return f"Successfully pressed {keycode}"
     else:
@@ -202,12 +217,13 @@ def chinese_to_pinyin(text):
     return pin_str
 
 
-async def input_text(text: str):
+async def input_text(text: str, delay_seconds: float = 2.0):
     """Input text on the device at the current focus.
 
     Args:
         text (str): Text to input. For Chinese characters, use pinyin instead
                    (e.g. "yu\\ tian" for "雨天") with escaped spaces.
+        delay_seconds (float): Delay after text input in seconds (default: 2.0s for TV loading)
                    Direct Chinese character input may fail on some devices.
                    Chinese characters will be automatically converted to pinyin.
 
@@ -241,6 +257,10 @@ async def input_text(text: str):
 
     # If successful, return success
     if success:
+        # Add delay after text input operation for TV loading
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
+        
         success_msg = f"Successfully input text: '{original_text}'"
         if original_text != text:
             success_msg += f" (converted to pinyin: '{text}')"
@@ -257,6 +277,10 @@ async def input_text(text: str):
         uri_success, uri_output = await run_command(uri_cmd)
         
         if uri_success:
+            # Add delay after text input operation for TV loading
+            if delay_seconds > 0:
+                await asyncio.sleep(delay_seconds)
+                
             success_msg = f"Successfully input text (URI encoded): '{original_text}'"
             if original_text != text:
                 success_msg += f" (converted to pinyin: '{text}')"
@@ -309,6 +333,10 @@ async def input_text(text: str):
                 await run_command(key_cmd)
                 await asyncio.sleep(0.2)
             
+            # Add delay after text input operation for TV loading
+            if delay_seconds > 0:
+                await asyncio.sleep(delay_seconds)
+                
             success_msg = f"Successfully input text (keyevent): '{original_text}'"
             if original_text != text:
                 success_msg += f" (converted to pinyin: '{text}')"
@@ -319,11 +347,12 @@ async def input_text(text: str):
     return json.dumps({"status": "error", "message": f"Failed to input text: {output}"}, ensure_ascii=False)
 
 
-async def open_url(url: str):
+async def open_url(url: str, delay_seconds: float = 2.0):
     """Open a URL in the device's default browser.
 
     Args:
         url (str): URL to open
+        delay_seconds (float): Delay after URL opening in seconds (default: 2.0s for TV loading)
 
     Returns:
         str: Success or error message
@@ -339,6 +368,10 @@ async def open_url(url: str):
 
     cmd = f'adb shell am start -a android.intent.action.VIEW -d "{url}"'
     success, output = await run_command(cmd)
+
+    # Add delay after URL opening for TV loading
+    if delay_seconds > 0:
+        await asyncio.sleep(delay_seconds)
 
     if success:
         return f"Successfully opened URL: {url}"

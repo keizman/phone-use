@@ -362,7 +362,23 @@ class TaskExecutionGuide:
 
 async def get_task_guidance(task_description: str, task_type: Optional[str] = None) -> str:
     """
-    Get structured guidance for executing a specific task.
+    ★★★ AI TASK ORCHESTRATION - Get intelligent guidance for complex automation workflows
+    
+    **WHEN TO USE**: Before starting complex automation tasks to get intelligent workflow guidance.
+    This tool provides structured strategies and step-by-step recommendations.
+    
+    **ADVANTAGES**:
+    - Intelligent task decomposition into actionable steps
+    - Context-aware strategy recommendations
+    - Automation workflow optimization
+    - Error prevention through strategic planning
+    
+    **TASK TYPES**:
+    - "navigation": Moving between screens/apps
+    - "interaction": UI element interactions
+    - "app_management": App lifecycle operations
+    - "system_control": System-level operations
+    - "information_retrieval": Data extraction and analysis
     
     Args:
         task_description: Description of the task to be performed

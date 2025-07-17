@@ -23,10 +23,21 @@ async def omniparser_analyze_screen(
     use_cache: bool = True
 ) -> str:
     """
-    Analyze current screen using Omniparser for visual element recognition.
+    ★★★★ PRIMARY VISUAL ANALYSIS TOOL - ALWAYS START HERE FOR SCREEN INTERACTIONS
     
-    This function captures a screenshot and uses Omniparser to identify UI elements with precise
-    bounding boxes and content recognition. Each element gets a unique UUID for interaction.
+    **WHEN TO USE**: For ANY screen interaction task, ALWAYS use this tool first to get visual context.
+    This is your most important tool for understanding what's on the screen.
+    
+    **CORE FUNCTIONALITY**: Captures screenshot and uses advanced computer vision (Omniparser) to identify 
+    UI elements with precise bounding boxes and content recognition. Each element gets a unique UUID 
+    for precise interaction.
+    
+    **ADVANTAGES OVER BASIC TOOLS**:
+    - Visual element recognition vs blind coordinate tapping
+    - Automatic element classification (text, icons, buttons)
+    - Precise bounding box detection
+    - Content-aware interaction (knows what you're clicking)
+    - UUID-based element tracking for reliable automation
     
     Args:
         server_url: Omniparser server URL (default: http://100.122.57.128:9333)
@@ -179,18 +190,29 @@ async def omniparser_find_interactive_elements(
 async def omniparser_tap_element_by_uuid(
     uuid: str,
     bias: bool = False,
-    server_url: str = "http://100.122.57.128:9333"
+    server_url: str = "http://100.122.57.128:9333",
+    delay_seconds: float = 2.0
 ) -> str:
     """
-    Tap UI element by UUID using Omniparser-identified coordinates.
+    ★★★★ PRECISION INTERACTION CORE - Use after screen analysis for precise element targeting
     
-    This function locates an element by its UUID (from previous analysis) and taps it at the
-    calculated center coordinates with optional bias correction for program/video content.
+    **WHEN TO USE**: After omniparser_analyze_screen, use this tool to tap specific elements by UUID.
+    This is the most reliable way to interact with UI elements.
+    
+    **ADVANTAGES**:
+    - Precise element targeting vs approximate coordinates
+    - Automatic bias correction for media content
+    - Reliable interaction even with dynamic layouts
+    - Content-aware clicking (knows what it's clicking)
+    
+    **BIAS CORRECTION**: Automatically detects when bias is needed for media content
+    (program titles, video thumbnails, etc.) and adjusts click position accordingly.
     
     Args:
-        uuid: Unique identifier of the element to tap
-        bias: If True, apply upward bias correction for program/video content (default: False)
+        uuid: Unique identifier of the element to tap (from omniparser_analyze_screen)
+        bias: If True, apply upward bias correction for program/video content (auto-detected)
         server_url: Omniparser server URL
+        delay_seconds: Delay after tap operation in seconds (default: 2.0s for TV loading)
         
     Returns:
         JSON string with tap result
@@ -224,6 +246,11 @@ async def omniparser_tap_element_by_uuid(
         
         # Tap element with bias correction
         result = await manager.tap_element_by_uuid(uuid, bias)
+        
+        # Add delay after tap operation for TV loading
+        if delay_seconds > 0:
+            import asyncio
+            await asyncio.sleep(delay_seconds)
         
         return result
         
@@ -430,16 +457,27 @@ async def omniparser_execute_action_by_uuid(
     uuid: str,
     action: str = "tap",
     bias: bool = False,
-    server_url: str = "http://100.122.57.128:9333"
+    server_url: str = "http://100.122.57.128:9333",
+    delay_seconds: float = 2.0
 ) -> str:
     """
-    Execute action on UI element by UUID with optional bias correction.
+    ★★★ ADVANCED INTERACTION ENGINE - Use for complex interactions beyond simple taps
+    
+    **WHEN TO USE**: For advanced gestures (long_press, double_tap, custom actions) on specific elements.
+    Use this when omniparser_tap_element_by_uuid is not sufficient.
+    
+    **SUPPORTED ACTIONS**:
+    - "tap": Standard tap (same as omniparser_tap_element_by_uuid)
+    - "long_press": Long press gesture for context menus
+    - "double_tap": Double tap for special actions
+    - More actions can be added as needed
     
     Args:
-        uuid: Unique identifier of the element
+        uuid: Unique identifier of the element (from omniparser_analyze_screen)
         action: Action to perform ("tap", "long_press", "double_tap")
         bias: If True, apply upward bias correction for program/video content
         server_url: Omniparser server URL
+        delay_seconds: Delay after action operation in seconds (default: 2.0s for TV loading)
         
     Returns:
         JSON string with action result
@@ -450,7 +488,7 @@ async def omniparser_execute_action_by_uuid(
     """
     try:
         if action == "tap":
-            return await omniparser_tap_element_by_uuid(uuid, bias, server_url)
+            return await omniparser_tap_element_by_uuid(uuid, bias, server_url, delay_seconds)
         elif action == "long_press":
             # For long press, we need to get coordinates and perform long press
             manager = get_interaction_manager(server_url)
@@ -472,6 +510,11 @@ async def omniparser_execute_action_by_uuid(
             result = await swipe_screen(x, y, x, y, 1000)  # 1 second duration
             
             bias_info = " (with bias correction)" if bias else ""
+            
+            # Add delay after long press operation for TV loading
+            if delay_seconds > 0:
+                import asyncio
+                await asyncio.sleep(delay_seconds)
             
             return json.dumps({
                 "status": "success",

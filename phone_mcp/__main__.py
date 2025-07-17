@@ -4,114 +4,53 @@ from mcp.server.fastmcp import FastMCP
 # Initialize FastMCP server
 mcp = FastMCP("phone_call")
 
-# Import all tools
-from .core import check_device_connection
-from .tools.media import start_screen_recording, play_media
-from .tools.apps import list_installed_apps, terminate_app, launch_app_activity
-from .tools.system import get_current_window, get_app_shortcuts
-# Import screen interface for unified interaction and analysis
-from .tools.screen_interface import analyze_screen, interact_with_screen
-# Import UI monitoring - use MCP compatible version
-from .tools.ui_monitor import mcp_monitor_ui_changes
-from .tools.interactions import open_url
-# Import additional ADB tools
-from .tools.adb_tools import (
-    adb_install, adb_uninstall,  adb_pull, adb_push,
-    take_screenshot_and_save, clear_app_data, force_stop_app, go_to_home, open_settings,
-    clear_cache_and_restart, force_restart_app
-)
-
-# Import Omniparser tools
+# Import optimized 12-tool architecture
+# Core Professional Layer (★★★★-★★★)
 from .tools.omniparser_tools import (
-    omniparser_analyze_screen, omniparser_find_elements_by_content,
-    omniparser_find_interactive_elements, omniparser_tap_element_by_uuid,
-    omniparser_get_element_info, omniparser_get_current_focus_pkg_name,
-    omniparser_clear_cache_and_restart, omniparser_get_screen_state,
+    omniparser_analyze_screen,
+    omniparser_tap_element_by_uuid,
     omniparser_execute_action_by_uuid
 )
+from .tools.prompt_engineering import get_task_guidance
 
-# Import prompt engineering tools
-from .tools.prompt_engineering import get_task_guidance, get_positioning_guidance, get_bias_recommendation
-
-# Import Android computer integration tools
-from .tools.android_computer_integration import (
-    android_tap_coordinates, android_long_press_coordinates, android_double_tap_coordinates,
-    android_swipe_gesture, android_scroll_screen, android_press_key,
-    android_input_text, android_get_screen_info
+# Common Function Layer (★★)
+from .tools.unified_tools import (
+    phone_screen_interact,
+    phone_app_control,
+    phone_system_control,
+    phone_communication
 )
 
+# Auxiliary Layer (★)
+from .tools.unified_tools import (
+    phone_file_operations,
+    phone_media_control,
+    phone_web_browser,
+    phone_device_info
+)
 
-# Import map functionality if available
-try:
-    from .tools.maps import get_phone_numbers_from_poi, HAS_VALID_API_KEY
-except ImportError:
-    HAS_VALID_API_KEY = False
+# Register Core Professional Tools (★★★★-★★★)
+mcp.tool()(omniparser_analyze_screen)       # ★★★★ PRIMARY VISUAL ANALYSIS
+mcp.tool()(omniparser_tap_element_by_uuid)  # ★★★★ PRECISION INTERACTION
+mcp.tool()(omniparser_execute_action_by_uuid) # ★★★ ADVANCED INTERACTIONS
+mcp.tool()(get_task_guidance)               # ★★★ AI TASK ORCHESTRATION
 
-# Register all tools with MCP
-mcp.tool()(check_device_connection)
-# mcp.tool()(take_screenshot)
-mcp.tool()(start_screen_recording)
-mcp.tool()(play_media)
-mcp.tool()(get_current_window)
-# mcp.tool()(get_app_shortcuts)
-mcp.tool()(launch_app_activity)
-mcp.tool()(list_installed_apps)
-# mcp.tool()(terminate_app)
-mcp.tool()(open_url)
+# Register Common Function Tools (★★)
+mcp.tool()(phone_screen_interact)           # ★★★ UNIFIED SCREEN INTERACTION
+mcp.tool()(phone_app_control)               # ★★ APP MANAGEMENT
+mcp.tool()(phone_system_control)            # ★★ SYSTEM CONTROL
+mcp.tool()(phone_communication)             # ★★ COMMUNICATION
 
-# Register unified screen interface tools
-mcp.tool()(analyze_screen)
-mcp.tool()(interact_with_screen)
-mcp.tool()(mcp_monitor_ui_changes)
-
-# Register additional ADB tools
-mcp.tool()(adb_install)
-mcp.tool()(adb_uninstall)
-mcp.tool()(adb_pull)
-mcp.tool()(adb_push)
-mcp.tool()(take_screenshot_and_save)
-mcp.tool()(clear_app_data)
-mcp.tool()(force_stop_app)
-mcp.tool()(go_to_home)
-mcp.tool()(open_settings)
-mcp.tool()(clear_cache_and_restart)
-mcp.tool()(force_restart_app)
-
-
-# Register Omniparser tools
-mcp.tool()(omniparser_analyze_screen)
-mcp.tool()(omniparser_find_elements_by_content)
-mcp.tool()(omniparser_find_interactive_elements)
-mcp.tool()(omniparser_tap_element_by_uuid)
-mcp.tool()(omniparser_get_element_info)
-mcp.tool()(omniparser_get_current_focus_pkg_name)
-mcp.tool()(omniparser_clear_cache_and_restart)
-mcp.tool()(omniparser_get_screen_state)
-mcp.tool()(omniparser_execute_action_by_uuid)
-
-# Register prompt engineering tools
-mcp.tool()(get_task_guidance)
-mcp.tool()(get_positioning_guidance)
-mcp.tool()(get_bias_recommendation)
-
-# Register Android computer integration tools
-mcp.tool()(android_tap_coordinates)
-mcp.tool()(android_long_press_coordinates)
-mcp.tool()(android_double_tap_coordinates)
-mcp.tool()(android_swipe_gesture)
-mcp.tool()(android_scroll_screen)
-mcp.tool()(android_press_key)
-mcp.tool()(android_input_text)
-mcp.tool()(android_get_screen_info)
-
-
-# Conditionally register map tool if API key is available
-# if HAS_VALID_API_KEY:
-#     mcp.tool()(get_phone_numbers_from_poi)
-
+# Register Auxiliary Tools (★)
+mcp.tool()(phone_file_operations)           # ★ FILE OPERATIONS
+mcp.tool()(phone_media_control)             # ★ MEDIA CONTROL
+mcp.tool()(phone_web_browser)               # ★ WEB BROWSER
+mcp.tool()(phone_device_info)               # ★ DEVICE INFO
 
 def main():
-    """Run the MCP server."""
+    """Run the MCP server with optimized 12-tool architecture."""
+    print(" Starting MCP Server with Optimized Tool Architecture")
+    
     mcp.run(transport="stdio")
 
 
