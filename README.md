@@ -630,6 +630,254 @@ The following tools are available through the MCP interface:
 ### Map Tools (if API key configured)
 - `get_phone_numbers_from_poi` - Search nearby POIs with phone numbers
 
+### Omniparser Integration Tools (Visual UI Recognition)
+- `omniparser_analyze_screen` - Analyze screen using Omniparser for visual element recognition
+- `omniparser_find_elements_by_content` - Find UI elements by content text using Omniparser
+- `omniparser_find_interactive_elements` - Find all interactive UI elements using Omniparser
+- `omniparser_tap_element_by_uuid` - Tap UI element by UUID using Omniparser-identified coordinates
+- `omniparser_get_element_info` - Get detailed information about a UI element by UUID
+- `omniparser_get_current_focus_pkg_name` - Get the current focused package name
+- `omniparser_clear_cache_and_restart` - Clear app cache and restart application
+- `omniparser_get_screen_state` - Get comprehensive screen state information
+- `omniparser_execute_action_by_uuid` - Execute action on UI element by UUID
+
+### Prompt Engineering Tools
+- `get_task_guidance` - Get structured guidance for executing specific tasks
+- `get_positioning_guidance` - Get guidance for positioning and state management
+
+### Android Computer Integration Tools
+- `android_tap_coordinates` - Tap at specific coordinates using Android computer integration
+- `android_long_press_coordinates` - Long press at specific coordinates
+- `android_double_tap_coordinates` - Double tap at specific coordinates
+- `android_swipe_gesture` - Perform swipe gesture
+- `android_scroll_screen` - Scroll screen in specified direction
+- `android_press_key` - Press system key
+- `android_input_text` - Input text using Android computer integration
+- `android_get_screen_info` - Get screen information
+
+## 🔮 Omniparser Integration
+
+### Overview
+The latest version includes **Omniparser integration** for precise visual UI element recognition. This advanced feature uses computer vision to identify UI elements with high accuracy, providing UUID-based element interaction for reliable automation.
+
+### Key Features of Omniparser Integration:
+- **Visual Element Recognition**: Uses computer vision to identify UI elements beyond traditional XML parsing
+- **UUID-Based Interaction**: Each element gets a unique identifier for precise targeting
+- **Dual Recognition Modes**: 
+  - YOLO mode for icon recognition
+  - PaddleOCR mode for comprehensive text recognition
+- **Precise Positioning**: Normalized coordinates for accurate element positioning
+- **Interactive Element Detection**: Automatically identifies clickable/interactive elements
+- **Content-Based Search**: Find elements by their visual content, not just XML attributes
+
+### Setup Requirements for Omniparser:
+1. **Omniparser Server**: Set up an Omniparser server 
+2. **Server Dependencies**: Ensure YOLO and PaddleOCR models are available on the server
+3. **Network Access**: Device must be able to reach the Omniparser server
+
+### Usage Examples:
+
+#### Basic Screen Analysis with Omniparser:
+```python
+# Analyze screen with comprehensive text recognition
+result = await omniparser_analyze_screen(use_paddleocr=True)
+
+# Analyze screen with icon recognition only
+result = await omniparser_analyze_screen(use_paddleocr=False)
+```
+
+#### UUID-Based Element Interaction:
+```python
+# Find interactive elements
+interactive_elements = await omniparser_find_interactive_elements()
+
+# Tap element by UUID (obtained from analysis)
+result = await omniparser_tap_element_by_uuid("abc123-def456-789")
+
+# Get detailed element information
+element_info = await omniparser_get_element_info("abc123-def456-789")
+```
+
+#### Content-Based Element Search:
+```python
+# Find elements containing specific text
+elements = await omniparser_find_elements_by_content("Login", partial_match=True)
+
+# Find exact text match
+elements = await omniparser_find_elements_by_content("Sign In", partial_match=False)
+```
+
+#### Advanced State Management:
+```python
+# Get comprehensive screen state
+screen_state = await omniparser_get_screen_state()
+
+# Get current app focus
+focus_pkg = await omniparser_get_current_focus_pkg_name()
+
+# Clear cache and restart with precision
+result = await omniparser_clear_cache_and_restart("com.example.app")
+```
+
+### Task Guidance System:
+The integration includes an intelligent task guidance system that provides structured prompts for different types of tasks:
+
+```python
+# Get guidance for navigation tasks
+guidance = await get_task_guidance("Navigate to settings", "navigation")
+
+# Get guidance for interaction tasks
+guidance = await get_task_guidance("Tap login button", "interaction")
+
+# Get positioning guidance
+positioning = await get_positioning_guidance()
+```
+
+### Omniparser vs Traditional UI Automation:
+
+| Feature | Traditional XML | Omniparser Integration |
+|---------|----------------|------------------------|
+| Element Recognition | XML hierarchy only | Visual + XML analysis |
+| Reliability | Depends on XML structure | Works with visual elements |
+| Precision | Coordinate-based | UUID-based targeting |
+| Content Recognition | Limited to XML attributes | OCR + visual content |
+| Dynamic UI Support | Limited | Excellent |
+| Cross-App Compatibility | App-dependent | Universal |
+
+### Configuration:
+Configure the Omniparser server URL in your implementation:
+```python
+# Default server configuration
+server_url = "http://100.122.57.128:9333"
+
+# Custom server configuration
+result = await omniparser_analyze_screen(server_url="http://your-server:port")
+```
+
+## 🎯 Prompt Engineering Experience & Best Practices
+
+### Key Learnings for Future Developers
+
+Based on extensive testing and optimization, here are the critical prompt engineering insights:
+
+#### 1. **Task Classification is Critical**
+- **Navigation Tasks**: Always get current position first, then plan step-by-step navigation
+- **Interaction Tasks**: Verify element interactivity before attempting actions
+- **Information Retrieval**: Use PaddleOCR mode for comprehensive text recognition
+- **App Management**: Understand app state before performing destructive actions
+- **System Control**: Handle system permission dialogs gracefully
+
+#### 2. **Context Awareness Strategy**
+```python
+# Always follow this pattern:
+# 1. Get current state
+current_state = await omniparser_get_screen_state()
+
+# 2. Understand context
+focus_pkg = await omniparser_get_current_focus_pkg_name()
+
+# 3. Plan actions based on context
+# 4. Execute with verification
+# 5. Handle errors gracefully
+```
+
+#### 3. **Element Targeting Hierarchy**
+1. **UUID-based targeting** (Omniparser) - Most reliable
+2. **Content-based search** - Good for dynamic content
+3. **Coordinate-based** - Last resort, use with bias correction
+
+#### 4. **Error Recovery Patterns**
+- **Element not found**: Refresh analysis with `use_cache=False`
+- **Server unavailable**: Fall back to traditional XML parsing
+- **Interaction failed**: Verify element state and retry
+- **App crashed**: Detect and restart application
+
+#### 5. **Performance Optimization**
+- **Cache strategically**: Use `use_cache=True` for repeated operations
+- **Batch operations**: Group related actions together
+- **OCR optimization**: Use `use_paddleocr=False` when text is not needed
+- **Server proximity**: Deploy Omniparser server close to execution environment
+
+#### 6. **Prompt Engineering Principles**
+- **Be specific**: "Tap the blue Login button" vs "tap login"
+- **Provide context**: Include current app state and user intent
+- **Handle ambiguity**: When multiple elements match, provide selection criteria
+- **Verify actions**: Always confirm action results before proceeding
+- **Graceful degradation**: Have fallback strategies for each interaction type
+
+#### 7. **Special Cases & Bias Handling**
+For media content (videos, programs), element names often appear below the actual clickable area:
+
+```python
+# For program/video content, use bias parameter
+# This adjusts the click position upward by approximately 1cm
+await omniparser_tap_element_by_uuid(uuid, bias=True)
+```
+
+#### 8. **Common Pitfalls to Avoid**
+- **Don't assume element positions**: Always use current screen analysis
+- **Don't ignore timing**: Some UI changes need time to complete
+- **Don't skip verification**: Always verify critical actions succeeded
+- **Don't hardcode coordinates**: Use relative positioning and bias corrections
+- **Don't ignore context**: The same element may behave differently in different app states
+
+#### 9. **Testing & Validation Strategy**
+- **Multi-device testing**: Test on different screen sizes and Android versions
+- **Edge case handling**: Test with slow networks, low memory, different languages
+- **Fallback verification**: Ensure graceful degradation when Omniparser is unavailable
+- **Performance monitoring**: Track response times and success rates
+
+#### 10. **Debugging Techniques**
+```python
+# Enable detailed logging for debugging
+logger.setLevel(logging.DEBUG)
+
+# Use element info for troubleshooting
+element_info = await omniparser_get_element_info(uuid)
+
+# Take screenshots for visual debugging
+screenshot = await take_screenshot_and_save("debug_screen.png")
+```
+
+### Advanced Prompt Engineering Patterns
+
+#### Pattern 1: Context-Aware Navigation
+```
+When navigating to [target], first determine current location using omniparser_get_current_focus_pkg_name, 
+then find the most direct path considering current UI state and available navigation elements.
+```
+
+#### Pattern 2: Robust Element Interaction
+```
+For clicking [element_type], use this sequence:
+1. Find element using omniparser_find_elements_by_content
+2. Verify element is interactive using omniparser_get_element_info
+3. Apply bias correction if element is program/video content
+4. Execute tap with omniparser_tap_element_by_uuid
+5. Verify action succeeded by checking UI state changes
+```
+
+#### Pattern 3: Error Recovery
+```
+If element interaction fails:
+1. Refresh screen analysis with use_cache=False
+2. Check if app state changed unexpectedly
+3. Look for error dialogs or permission requests
+4. Retry with alternative element selection criteria
+5. Fall back to coordinate-based interaction if needed
+```
+
+#### Pattern 4: Media Content Handling
+```
+For media content (videos, programs, shows):
+- Element names are typically below the clickable area
+- Use bias=True to adjust click position upward
+- Verify content started playing after interaction
+- Handle loading states and buffering
+```
+
+These patterns have been battle-tested across multiple Android versions and app types, providing reliable automation even in complex scenarios.
+
 ## 📱 Device Requirements
 
 - Android device with USB debugging enabled
