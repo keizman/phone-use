@@ -185,7 +185,7 @@ async def phone_app_control(
     Controls Android applications - launch, terminate, list installed apps, and get app info.
     
     Args:
-        action: Action to perform: 'launch', 'launch_activity', 'terminate', 'force_stop', 'list_apps', 'get_current'
+        action: Action to perform: 'launch_app', 'launch_activity', 'terminate', 'force_stop', 'list_apps', 'get_current'
         app_name: App display name (for launch action)
         package_name: App package name (for specific package operations)
         activity_name: Specific activity to launch (for launch_activity)
@@ -194,7 +194,7 @@ async def phone_app_control(
         JSON with operation result
         
     Examples:
-        - Launch app: {"action": "launch", "app_name": "Settings"}
+        - Launch app: {"action": "launch_app", "app_name": "Settings"}
         - List apps: {"action": "list_apps"}
         - Stop app: {"action": "terminate", "package_name": "com.android.settings"}
         - Get current app: {"action": "get_current"}
@@ -204,7 +204,7 @@ async def phone_app_control(
         if "ready" not in connection_status:
             return json.dumps({"status": "error", "message": connection_status})
         
-        if action == "launch" and app_name:
+        if action == "launch_app" and app_name:
             # Launch app by name - fixed to avoid shell command substitution issues
             # First, get the package list
             list_cmd = "adb shell pm list packages"
@@ -213,7 +213,7 @@ async def phone_app_control(
             if not success:
                 return json.dumps({
                     "status": "error",
-                    "action": "launch",
+                    "action": "launch_app",
                     "app_name": app_name,
                     "output": "Failed to get package list"
                 })
@@ -228,7 +228,7 @@ async def phone_app_control(
             if not target_package:
                 return json.dumps({
                     "status": "error",
-                    "action": "launch",
+                    "action": "launch_app",
                     "app_name": app_name,
                     "output": f"Package not found for app: {app_name}"
                 })
@@ -238,7 +238,7 @@ async def phone_app_control(
             success, output = await run_command(cmd)
             return json.dumps({
                 "status": "success" if success else "error",
-                "action": "launch",
+                "action": "launch_app",
                 "app_name": app_name,
                 "package": target_package,
                 "output": output

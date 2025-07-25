@@ -181,7 +181,7 @@ class OmniparserScreenAnalyzer:
         self.client = omniparser_client
         self._screen_cache = {}
         self._cache_timeout = 5.0  # Cache for 5 seconds
-    
+        self.counter = 0
     async def get_screen_size(self) -> Tuple[int, int]:
         """Get screen dimensions using ADB"""
         try:
@@ -199,6 +199,7 @@ class OmniparserScreenAnalyzer:
                                        use_cache: bool = True) -> Dict[str, Any]:
         """Capture screenshot and analyze using Omniparser"""
         try:
+            self.counter += 1
             # Check cache first
             cache_key = f"screen_analysis_{use_paddleocr}"
             current_time = time.time()
@@ -211,18 +212,45 @@ class OmniparserScreenAnalyzer:
             
             # Take screenshot
             screenshot_result = await take_screenshot()
-            screenshot_data = json.loads(screenshot_result)
+            print(f"screenshot_result: {screenshot_result}")
+            self.counter += 1
+            # Check if screenshot was successful by looking for success indicators
+            if "Failed to take screenshot" in screenshot_result or "error" in screenshot_result.lower():
+                raise Exception(f"Failed to take screenshot: {screenshot_result}")
             
-            if screenshot_data.get("status") != "success":
-                raise Exception(f"Failed to take screenshot: {screenshot_data.get('message', 'Unknown error')}")
+            # Find the screenshot file path from the result message
+            screenshot_file = None
+            if "pulled to current directory" in screenshot_result:
+                # Extract filename from message like "pulled to current directory (./screenshot_20250717_181841.png)"
+                import re
+                match = re.search(r'\./([^)]+\.png)', screenshot_result)
+                if match:
+                    screenshot_file = match.group(1)
+            elif "screenshot_direct.png" in screenshot_result:
+                screenshot_file = "screenshot_direct.png"
+            else:
+                # Try to find any .png file in the message
+                import re
+                match = re.search(r'([^/\s]+\.png)', screenshot_result)
+                if match:
+                    screenshot_file = match.group(1)
             
-            base64_image = screenshot_data.get("data", "")
-            if not base64_image:
-                raise Exception("No image data in screenshot result")
+            if not screenshot_file:
+                raise Exception("Could not determine screenshot file path from result")
+            
+            # Convert screenshot to base64
+            try:
+                with open(screenshot_file, 'rb') as f:
+                    image_data = f.read()
+                    base64_image = base64.b64encode(image_data).decode('utf-8')
+            except Exception as e:
+                raise Exception(f"Failed to read screenshot file {screenshot_file}: {str(e)}")
+            
+            self.counter += 1
             
             # Parse with Omniparser
             parse_result = await self.client.parse_screen(base64_image, use_paddleocr)
-            
+            self.counter += 1
             # Get screen dimensions
             screen_width, screen_height = await self.get_screen_size()
             
@@ -240,7 +268,7 @@ class OmniparserScreenAnalyzer:
                     source=item.get("source", "")
                 )
                 elements.append(element)
-            
+            self.counter += 1
             result = {
                 "status": "success",
                 "message": "Screen analyzed successfully with Omniparser",
@@ -262,7 +290,7 @@ class OmniparserScreenAnalyzer:
             return result
             
         except Exception as e:
-            logger.error(f"Screen analysis failed: {e}")
+            logger.error(f"Screen analysis failed: {e}. counter: {self.counter}")
             return {
                 "status": "error",
                 "message": f"Failed to analyze screen: {str(e)}",

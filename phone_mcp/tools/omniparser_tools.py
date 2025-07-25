@@ -16,7 +16,7 @@ from ..core import run_command
 
 logger = logging.getLogger("phone_mcp")
 
-
+counter = 0
 async def omniparser_analyze_screen(
     server_url: str = "http://172.27.1.113:9333",
     use_paddleocr: Optional[bool] = None,
@@ -73,27 +73,30 @@ async def omniparser_analyze_screen(
             "interactive_count": 8
         }
     """
+    global counter
     try:
         # Get screen analyzer
         analyzer = get_screen_analyzer(server_url)
-        
+        counter += 1
         # Check server health first
         if not await analyzer.client.health_check():
             return json.dumps({
                 "status": "error",
                 "message": f"Omniparser server at {server_url} is not available"
             })
-        
+        counter += 1
         # Perform analysis
         result = await analyzer.capture_and_analyze_screen(
             use_paddleocr=use_paddleocr,
             use_cache=use_cache
         )
-        
+        counter += 1
         return json.dumps(result, ensure_ascii=False, indent=2)
         
     except Exception as e:
-        logger.error(f"Omniparser screen analysis failed: {e}")
+
+        logger.error(f"Omniparser screen analysis failed: {e}. counter: {counter}")
+        
         return json.dumps({
             "status": "error",
             "message": f"Failed to analyze screen: {str(e)}"
