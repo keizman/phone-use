@@ -425,6 +425,61 @@ async def get_task_guidance(task_description: str, task_type: Optional[str] = No
         })
 
 
+async def get_usage_examples() -> str:
+    """
+    Get simple usage examples and tool call chains for external LLMs.
+    
+    Returns:
+        JSON string with common usage patterns and examples
+    """
+    examples = {
+        "quick_start": "dump_ui() → find_element_by_text() → tap_element()",
+        "app_launch_pattern": [
+            "phone_app_control(action='launch_app', package_name='com.app.name')",
+            "dump_ui() [auto-closes ads]",
+            "find_element_by_text(text='target', use_paddleocr=True)",
+            "tap_element(target='target', bias=True for media)"
+        ],
+        "common_tasks": {
+            "launch_app": {
+                "tool": "phone_app_control",
+                "required_params": {"action": "launch_app", "package_name": "com.example.app"},
+                "example": "phone_app_control(action='launch_app', package_name='com.mobile.brasiltvmobile')"
+            },
+            "find_content": {
+                "tool": "find_element_by_text", 
+                "required_params": {"text": "content_to_find"},
+                "optional_params": {"use_paddleocr": "true for Chinese text"},
+                "example": "find_element_by_text(text='西语手机端720资源02', use_paddleocr=True)"
+            },
+            "tap_content": {
+                "tool": "tap_element",
+                "required_params": {"target": "element_text_or_uuid"},
+                "optional_params": {"bias": "true for media content"},
+                "example": "tap_element(target='西语手机端720资源02', bias=True)"
+            },
+            "get_screen": {
+                "tool": "dump_ui",
+                "params": "no required params",
+                "note": "automatically detects and closes ads",
+                "example": "dump_ui()"
+            }
+        },
+        "error_handling": {
+            "element_not_found": "phone_system_control(action='back') then retry",
+            "app_not_responding": "phone_app_control(action='terminate') then relaunch",
+            "ads_blocking": "system auto-handles via dump_ui()"
+        },
+        "media_content_tips": {
+            "always_use_bias": "bias=True for 节目, 视频, programs, videos", 
+            "text_recognition": "use_paddleocr=True for Chinese text",
+            "screen_analysis": "dump_ui() first to understand layout"
+        }
+    }
+    
+    return json.dumps(examples, ensure_ascii=False, indent=2)
+
+
 async def get_tv_app_guidance(
     app_package: str = "com.unitvnet.tvod",
     target_action: str = "四宫格跳转频道"

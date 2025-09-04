@@ -230,7 +230,9 @@ async def phone_app_control(
                     "status": "error",
                     "action": "launch_app",
                     "app_name": app_name,
-                    "output": f"Package not found for app: {app_name}"
+                    "message": f"App '{app_name}' not found. Please check spelling or use 'list_apps' action to see available apps.",
+                    "suggestion": "Use action='list_apps' to see all installed applications",
+                    "available_actions": ["list_apps", "launch_activity", "terminate"]
                 })
             
             # Launch the app using the found package
@@ -301,9 +303,22 @@ async def phone_app_control(
                 "output": output
             })
         
+        # Detailed error with available actions  
+        valid_actions = {
+            "launch_app": "requires app_name parameter",
+            "launch_activity": "requires package_name and activity_name parameters", 
+            "terminate": "requires package_name parameter",
+            "force_stop": "requires package_name parameter",
+            "list_apps": "no parameters required",
+            "get_current": "no parameters required"
+        }
+        
         return json.dumps({
             "status": "error",
-            "message": "Invalid action or missing parameters"
+            "message": f"Invalid action '{action}' or missing required parameters",
+            "received_action": action,
+            "valid_actions": valid_actions,
+            "example": "Use action='list_apps' to see available apps, then action='launch_app' with app_name='Settings'"
         })
         
     except Exception as e:

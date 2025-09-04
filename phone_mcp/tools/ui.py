@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 import logging
 from typing import Optional
 from ..core import run_command, check_device_connection
+from .ad_detector import auto_close_ads
 
 logger = logging.getLogger("phone_mcp")
 
@@ -94,7 +95,29 @@ async def dump_ui(filter_package: Optional[str] = None) -> str:
                     }
                     cleaned_data["elements"].append(cleaned_element)
                 
-                return json.dumps(cleaned_data, indent=2)
+                # Auto-detect and close ads before returning to user
+                ad_result = await auto_close_ads(cleaned_data, max_attempts=3)
+                
+                # Always use final UI data (whether ads were closed or not)
+                final_ui = ad_result["final_ui_data"]
+                
+                # Add ad processing information
+                if ad_result["ads_closed"] > 0:
+                    logger.info(f"Auto-closed {ad_result['ads_closed']} advertisements")
+                    final_ui["ad_removal"] = {
+                        "ads_closed": ad_result["ads_closed"],
+                        "attempts": len(ad_result["attempts"]),
+                        "auto_processed": True
+                    }
+                
+                # Add warning if ads still detected
+                if ad_result.get("warning"):
+                    final_ui["ad_detection"] = {
+                        "warning": ad_result["warning"],
+                        "manual_action_needed": True
+                    }
+                
+                return json.dumps(final_ui, indent=2)
             else:
                 return result
         except Exception as e:
@@ -206,11 +229,38 @@ async def _dump_ui_xml_fallback(filter_package: Optional[str] = None) -> str:
             
             elements.append(element_data)
         
-        return json.dumps({
+        # Prepare initial UI data
+        ui_data = {
             "status": "success",
             "total_count": len(elements),
             "elements": elements
-        }, indent=2)
+        }
+        
+        # Auto-detect and close ads before returning to user
+        ad_result = await auto_close_ads(ui_data, max_attempts=3)
+        
+        # Always use final UI data (whether ads were closed or not)
+        final_ui = ad_result["final_ui_data"]
+        
+        # Add ad processing information
+        if ad_result["ads_closed"] > 0:
+            logger.info(f"Auto-closed {ad_result['ads_closed']} advertisements (XML fallback mode)")
+            final_ui["ad_removal"] = {
+                "ads_closed": ad_result["ads_closed"],
+                "attempts": len(ad_result["attempts"]),
+                "auto_processed": True,
+                "mode": "xml_fallback"
+            }
+        
+        # Add warning if ads still detected
+        if ad_result.get("warning"):
+            final_ui["ad_detection"] = {
+                "warning": ad_result["warning"],
+                "manual_action_needed": True,
+                "mode": "xml_fallback"
+            }
+        
+        return json.dumps(final_ui, indent=2)
         
     except ET.ParseError as e:
         error_msg = f"Failed to parse XML file: {str(e)}"

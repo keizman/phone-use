@@ -140,6 +140,15 @@ async def list_tools() -> list[Tool]:
                 },
                 "required": ["action"]
             }
+        ),
+        Tool(
+            name="get_usage_examples", 
+            description="★★★ USAGE GUIDANCE - Get usage examples and tool call chains for common tasks",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
         )
     ]
     
@@ -195,6 +204,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         elif name == "phone_system_control":
             from .tools.unified_tools import phone_system_control
             result = await phone_system_control(**arguments)
+            return [TextContent(type="text", text=result)]
+            
+        elif name == "get_usage_examples":
+            from .tools.prompt_engineering import get_usage_examples
+            result = await get_usage_examples(**arguments)
             return [TextContent(type="text", text=result)]
             
         else:
