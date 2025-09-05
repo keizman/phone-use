@@ -463,7 +463,7 @@ async def omniparser_execute_action_by_uuid(
     delay_seconds: float = 2.0
 ) -> str:
     """
-    ★★★ ADVANCED INTERACTION ENGINE - Use for complex interactions beyond simple taps
+    ADVANCED INTERACTION ENGINE - Use for complex interactions beyond simple taps
     
     **WHEN TO USE**: For advanced gestures (long_press, double_tap, custom actions) on specific elements.
     Use this when omniparser_tap_element_by_uuid is not sufficient.

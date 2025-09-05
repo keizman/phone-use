@@ -104,15 +104,20 @@ async def list_tools() -> list[Tool]:
             }
         ),
         
-        # ★★★ COMMON FUNCTION TOOLS
+        # COMMON FUNCTION TOOLS
         Tool(
             name="phone_screen_interact",
-            description="★★★ UNIFIED SCREEN INTERACTION - Comprehensive screen interaction capabilities",
+            description="UNIFIED SCREEN INTERACTION - Comprehensive screen interaction capabilities",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "action": {"type": "string", "description": "Action to perform (tap, swipe, scroll, etc.)"},
-                    "parameters": {"type": "object", "description": "Action parameters"}
+                    "parameters": {"type": "object", "description": "Action parameters (optional)"},
+                    "target": {"type": "string", "description": "Element to interact with"},
+                    "coordinates": {"type": "string", "description": "Direct coordinates as 'x,y'"},
+                    "text": {"type": "string", "description": "Text to input (for input_text action)"},
+                    "use_omniparser": {"type": "boolean", "description": "Use visual element recognition"},
+                    "delay_seconds": {"type": "number", "description": "Delay after action in seconds"}
                 },
                 "required": ["action"]
             }
@@ -143,7 +148,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="get_usage_examples", 
-            description="★★★ USAGE GUIDANCE - Get usage examples and tool call chains for common tasks",
+            description="USAGE GUIDANCE - Get usage examples and tool call chains for common tasks",
             inputSchema={
                 "type": "object",
                 "properties": {},

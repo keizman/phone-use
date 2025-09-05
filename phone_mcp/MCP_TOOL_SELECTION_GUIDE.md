@@ -7,7 +7,7 @@ Need to interact with screen elements?
 ├─ YES → START with omniparser_analyze_screen ★★★★
 │   ├─ Elements found? → omniparser_tap_element_by_uuid ★★★★
 │   ├─ Complex actions? → omniparser_execute_action_by_uuid ★★★
-│   └─ Omniparser fails? → phone_screen_interact ★★★ (coordinate mode)
+│   └─ Omniparser fails? → phone_screen_interact (coordinate mode)
 │
 ├─ App lifecycle management? → phone_app_control ★★
 ├─ System navigation/settings? → phone_system_control ★★
@@ -17,7 +17,7 @@ Need to interact with screen elements?
 ├─ Web browsing? → phone_web_browser ★
 ├─ Device diagnostics? → phone_device_info ★
 │
-└─ Complex automation task? → get_task_guidance ★★★ FIRST
+└─ Complex automation task? → get_task_guidance FIRST
 ```
 
 ## 🔥 Priority Tool Classification
@@ -35,7 +35,7 @@ These tools leverage advanced computer vision and AI for precise interactions:
    - Automatic bias correction for media content
    - Most reliable way to interact with UI elements
 
-### ★★★ ADVANCED PROFESSIONAL TOOLS
+### ADVANCED PROFESSIONAL TOOLS
 3. **`omniparser_execute_action_by_uuid`** - COMPLEX INTERACTIONS
    - For long_press, double_tap, advanced gestures
    - Use when simple tap is insufficient

@@ -27,10 +27,12 @@ async def phone_screen_interact(
     use_omniparser: bool = True,
     server_url: str = "http://100.122.57.128:9333",
     bias: Optional[bool] = None,
-    delay_seconds: float = 2.0
+    delay_seconds: float = 2.0,
+    parameters: Optional[dict] = None,
+    **kwargs
 ) -> str:
     """
-    ★★★ UNIFIED SCREEN INTERACTION - Use when Omniparser unavailable OR for coordinate-based actions
+    UNIFIED SCREEN INTERACTION - Use when Omniparser unavailable OR for coordinate-based actions
     
     **WHEN TO USE**: 
     - When Omniparser server is unavailable (fallback mode)
@@ -66,6 +68,26 @@ async def phone_screen_interact(
         - Analyze screen: {"action": "analyze_only"}
     """
     try:
+        # Handle parameters dict for backwards compatibility
+        if parameters:
+            # Extract parameters from dict if provided
+            if 'wait_time' in parameters:
+                delay_seconds = float(parameters['wait_time'])
+            if 'target' in parameters:
+                target = parameters['target']
+            if 'coordinates' in parameters:
+                coordinates = parameters['coordinates']
+            if 'text' in parameters:
+                text = parameters['text']
+            if 'use_omniparser' in parameters:
+                use_omniparser = bool(parameters['use_omniparser'])
+            if 'bias' in parameters:
+                bias = bool(parameters['bias'])
+                
+        # Handle kwargs for flexibility
+        if 'wait_time' in kwargs:
+            delay_seconds = float(kwargs['wait_time'])
+        
         # Auto-detect bias if not specified
         if bias is None and target:
             bias = detect_bias_requirement(target)
@@ -204,7 +226,11 @@ async def phone_app_control(
         if "ready" not in connection_status:
             return json.dumps({"status": "error", "message": connection_status})
         
-        if action == "launch_app" and app_name:
+        # Support "start" as alias for "launch_app"
+        if action == "start":
+            action = "launch_app"
+        
+        if action == "launch_app" and (app_name or package_name):
             # Launch app by name - fixed to avoid shell command substitution issues
             # First, get the package list
             list_cmd = "adb shell pm list packages"
@@ -218,12 +244,26 @@ async def phone_app_control(
                     "output": "Failed to get package list"
                 })
             
-            # Find package containing the app name
-            target_package = None
-            for line in package_list.strip().split('\n'):
-                if ':' in line and app_name.lower() in line.lower():
-                    target_package = line.split(':')[1].strip()
-                    break
+            # If package_name is directly provided, use it
+            if package_name:
+                # Verify the package exists
+                if f"package:{package_name}" in package_list:
+                    target_package = package_name
+                else:
+                    return json.dumps({
+                        "status": "error",
+                        "action": "launch_app", 
+                        "package_name": package_name,
+                        "message": f"Package '{package_name}' not found on device",
+                        "suggestion": "Use action='list_apps' to see all installed applications"
+                    })
+            else:
+                # Find package containing the app name
+                target_package = None
+                for line in package_list.strip().split('\n'):
+                    if ':' in line and app_name.lower() in line.lower():
+                        target_package = line.split(':')[1].strip()
+                        break
             
             if not target_package:
                 return json.dumps({
@@ -235,14 +275,32 @@ async def phone_app_control(
                     "available_actions": ["list_apps", "launch_activity", "terminate"]
                 })
             
+            # Check if the target package is currently in foreground
+            focus_cmd = "adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | head -1"
+            focus_success, focus_output = await run_command(focus_cmd)
+            
+            current_in_foreground = False
+            if focus_success and focus_output and target_package in focus_output:
+                current_in_foreground = True
+                
+            # If app is already in foreground, stop it first to reset state
+            if current_in_foreground:
+                stop_cmd = f'adb shell am force-stop {target_package}'
+                await run_command(stop_cmd)
+                # Small delay to ensure clean stop
+                import asyncio
+                await asyncio.sleep(1)
+            
             # Launch the app using the found package
             cmd = f'adb shell monkey -p {target_package} -c android.intent.category.LAUNCHER 1'
             success, output = await run_command(cmd)
             return json.dumps({
                 "status": "success" if success else "error",
                 "action": "launch_app",
-                "app_name": app_name,
+                "app_name": app_name if app_name else package_name,
                 "package": target_package,
+                "was_in_foreground": current_in_foreground,
+                "reset_performed": current_in_foreground,
                 "output": output
             })
         
@@ -294,18 +352,88 @@ async def phone_app_control(
                 })
         
         elif action == "get_current":
-            # Get current foreground app
-            cmd = "adb shell dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp'"
-            success, output = await run_command(cmd)
-            return json.dumps({
-                "status": "success" if success else "error",
-                "action": "get_current",
-                "output": output
-            })
+            # Get current foreground app with shorter timeout and fallback methods
+            try:
+                # Method 1: Fast focused window detection (5 second timeout) - get multiple lines
+                cmd = "adb shell dumpsys window | grep -E 'mCurrentFocus' | head -5"
+                success, output = await run_command(cmd, timeout=5)
+                
+                # Extract package name from all mCurrentFocus lines
+                package_name = "unknown"
+                if output and success:
+                    import re
+                    lines = output.strip().split('\n')
+                    for line in lines:
+                        # Skip null lines
+                        if 'mCurrentFocus=null' in line:
+                            continue
+                        # Look for Window{...} patterns with package names
+                        window_match = re.search(r'Window\{[^}]+\s+([a-zA-Z0-9_.]+)/[a-zA-Z0-9_.]+', line)
+                        if window_match:
+                            potential_package = window_match.group(1)
+                            if '.' in potential_package and len(potential_package.split('.')) >= 2:
+                                package_name = potential_package
+                                break
+                
+                if package_name == "unknown":
+                    # Method 2: Activity manager approach (5 second timeout)
+                    cmd = "adb shell dumpsys activity activities | grep 'ResumedActivity' | head -3"
+                    success, output = await run_command(cmd, timeout=5)
+                    
+                    if output and success:
+                        # Look for ResumedActivity patterns
+                        resumed_match = re.search(r'ResumedActivity:\s*ActivityRecord\{[^}]+\s+([a-zA-Z0-9_.]+)/', output)
+                        if resumed_match:
+                            potential_package = resumed_match.group(1)
+                            if '.' in potential_package:
+                                package_name = potential_package
+                
+                if package_name == "unknown":
+                    # Method 3: Top activity fallback (3 second timeout)
+                    cmd = "adb shell dumpsys activity top | head -5"
+                    success, output = await run_command(cmd, timeout=3)
+                    
+                    if output and success:
+                        # Look for any package name patterns
+                        top_match = re.search(r'([a-zA-Z0-9_.]{3,})\/', output)
+                        if top_match:
+                            potential_package = top_match.group(1)
+                            if '.' in potential_package and len(potential_package.split('.')) >= 2:
+                                package_name = potential_package
+                
+                return json.dumps({
+                    "status": "success" if success else "partial_success",
+                    "action": "get_current",
+                    "package_name": package_name,
+                    "raw_output": output.strip() if output else "",
+                    "method_used": "multi_step_detection",
+                    "message": "Current app detected" if package_name != "unknown" else "Partial detection - check raw_output"
+                })
+                
+            except Exception as e:
+                # Emergency fallback with fastest possible detection
+                try:
+                    cmd = "adb shell 'dumpsys activity activities | head -5'"
+                    success, output = await run_command(cmd, timeout=2)
+                    return json.dumps({
+                        "status": "error_with_fallback",
+                        "action": "get_current",
+                        "error": str(e),
+                        "fallback_output": output.strip() if output else "",
+                        "message": "Primary detection failed, fallback attempted"
+                    })
+                except:
+                    return json.dumps({
+                        "status": "error",
+                        "action": "get_current", 
+                        "error": str(e),
+                        "message": "All detection methods failed"
+                    })
         
         # Detailed error with available actions  
         valid_actions = {
-            "launch_app": "requires app_name parameter",
+            "launch_app": "requires app_name or package_name parameter",
+            "start": "alias for launch_app, requires app_name or package_name parameter",
             "launch_activity": "requires package_name and activity_name parameters", 
             "terminate": "requires package_name parameter",
             "force_stop": "requires package_name parameter",

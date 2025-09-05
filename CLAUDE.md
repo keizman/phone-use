@@ -169,7 +169,7 @@ The project currently has **30+ MCP tools** which may cause tool selection diffi
 
 #### 📊 Tool Prioritization Framework
 ```
-【核心专业层】★★★ - Keep Independent (High Priority)
+【核心专业层】- Keep Independent (High Priority)
 - omniparser_analyze_screen (Visual analysis core)
 - omniparser_tap_element_by_uuid (Precision interaction core) 
 - omniparser_execute_action_by_uuid (Advanced interaction)
@@ -193,7 +193,7 @@ The project currently has **30+ MCP tools** which may cause tool selection diffi
 5. **LLM Selection Guidance**: Provide clear "when to use" instructions
 
 #### 📝 Enhanced Prompt Strategy
-- **Bold Priority Markers**: ★★★ PRIMARY TOOL, ★★ SECONDARY, ★ HELPER
+- **Bold Priority Markers**: PRIMARY TOOL, ★★ SECONDARY, ★ HELPER
 - **Decision Trees**: "For screen interaction → use Omniparser first"
 - **Usage Scenarios**: Clear "when to use this tool" descriptions
 - **Capability Boundaries**: Explicit tool limitation explanations

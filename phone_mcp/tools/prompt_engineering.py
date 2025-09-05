@@ -375,7 +375,7 @@ class TaskExecutionGuide:
 
 async def get_task_guidance(task_description: str, task_type: Optional[str] = None) -> str:
     """
-    ★★★ AI TASK ORCHESTRATION - Get intelligent guidance for complex automation workflows
+    AI TASK ORCHESTRATION - Get intelligent guidance for complex automation workflows
     
     **WHEN TO USE**: Before starting complex automation tasks to get intelligent workflow guidance.
     This tool provides structured strategies and step-by-step recommendations.
@@ -485,7 +485,7 @@ async def get_tv_app_guidance(
     target_action: str = "四宫格跳转频道"
 ) -> str:
     """
-    ★★★ TV APP AUTOMATION GUIDANCE - Specialized guidance for TV/video app interactions
+    TV APP AUTOMATION GUIDANCE - Specialized guidance for TV/video app interactions
     
     Provides specific guidance for TV app automation including modal dialog handling.
     

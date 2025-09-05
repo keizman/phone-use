@@ -220,4 +220,30 @@ CHALLENGE 4: Wrong Element Tapped
 SOLUTION: Use bias correction → Tap below thumbnails for media content
 
 CHALLENGE 5: App Frozen/Unresponsive
-SOLUTION: Force restart app → Re-run complete workflow
+SOLUTION: Force restart app → Re-run complete workflow.
+
+
+
+
+
+
+
+
+-- 
+
+设计原因
+
+我希望有一个 MCP 证明 LLM + MCP 方式能成功控制 APK 简单操作, 最终以更加确定性的信息以 自动生成用例进行 APK 自动化测试.
+当前做到了什么
+
+模式:  dumo_ui + omniparser 模式
+
+作用: dump_ui 使用 uiautomator2 , 即使如此, 在使用 APK 播放状态依旧无法获取界面控件布局, 只有当暂停播放视频时才可以, 此时需要 omniparser 进行基于 AI 的 UI 视觉识别, 其能感知当前屏幕的 app 空间位置, 之后, 返回给外部 LLM 的是与 Dump_ui 一样的元素位置等详细信息, 使用者并不知道两者的区别 只需要关注空间是否成功点击, 达成操控目的. 
+既然  uiautomator2 有问题为什么不全部使用 omniparser: omniparser 识别速度没有 uiautomator2 快, 准确率 90%, 即使如此也有错误率, 其使用 GPU 资源消耗
+
+下一步, 对于外部 LLM 而言其不需要知道内部逻辑, 因此code 需要自动根据当前播放状态来确认使用哪个进行屏幕识别, 比如可以通过当前媒体播放状态, 音频使用状态, player 使用状态来确认播放状态, 之后使用正确的识别模式, 精准切换
+
+
+
+---
+加一个 逻辑, 执行用户的 start pkg name 前执行命令 gercureent focus pkg  确认是否在前台, 如果是, 请先 pm stop 再启动 apk , 防止重复唤起引起的问题, 也可重置当前状态

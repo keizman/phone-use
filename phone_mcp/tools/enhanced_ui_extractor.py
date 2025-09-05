@@ -164,35 +164,50 @@ class PlaybackDetector:
             return PlaybackState.UNKNOWN
     
     async def _check_audio_flinger_enhanced(self) -> bool:
-        """增强的音频flinger状态检查"""
+        """精确的音频flinger状态检查 - 基于用户验证的方法"""
         try:
-            # 检查非待机状态的音频输出
-            cmd = 'adb shell "dumpsys media.audio_flinger | grep -E \\"Standby: no|Output\\""'
+            # 方法基于用户验证:
+            # Not Playing: 1 "Standby: no" (AudioIn only)  
+            # Playing: 2+ "Standby: no" (AudioIn + AudioOut)
+            cmd = 'adb shell dumpsys media.audio_flinger | grep "Standby: no"'
             success, output = await run_command(cmd)
             
-            if success:
-                # 检查是否有活跃的音频输出
-                active_outputs = len([line for line in output.split('\n') 
-                                    if 'Standby: no' in line])
-                return active_outputs >= 1
+            if success and output.strip():
+                standby_count = len([line for line in output.split('\n') 
+                                   if 'Standby: no' in line.strip()])
+                
+                # 精确判断: 2或更多表示真正播放 (AudioIn + AudioOut)
+                # 1个通常只是AudioIn (麦克风/系统音频)
+                logger.debug(f"音频Flinger检测: {standby_count} 个 'Standby: no' 条目")
+                return standby_count >= 2
                 
         except Exception as e:
-            logger.warning(f"增强音频flinger检测失败: {e}")
+            logger.warning(f"音频flinger检测失败: {e}")
         
         return False
     
     async def _check_wake_locks_enhanced(self) -> bool:
-        """增强的Wake Lock状态检查"""
+        """精确的Wake Lock状态检查 - 基于用户验证的方法"""
         try:
-            # 检查音频相关的Wake Lock
-            cmd = 'adb shell "dumpsys power | grep -iE \\"wake.*audio|media.*wake\\""'
+            # 方法基于用户验证:
+            # Not Playing: 只有 AudioIn AudioIn_A61005
+            # Playing: AudioIn + AudioMix AudioOut_xxxx (新增输出锁)
+            cmd = 'adb shell dumpsys power | grep -i wake | grep Audio'
             success, output = await run_command(cmd)
             
-            if success:
-                return len(output.strip()) > 0 and ('Audio' in output or 'MediaPlayer' in output)
+            if success and output.strip():
+                lines = output.split('\n')
+                audio_locks = [line.strip() for line in lines if line.strip()]
+                
+                # 检查是否有AudioOut或AudioMix输出锁 (表明正在播放)
+                has_output_lock = any('AudioOut' in lock or 'AudioMix' in lock 
+                                    for lock in audio_locks)
+                
+                logger.debug(f"音频Wake Lock检测: {len(audio_locks)} 个锁, 输出锁: {has_output_lock}")
+                return has_output_lock
                 
         except Exception as e:
-            logger.warning(f"增强Wake Lock检测失败: {e}")
+            logger.warning(f"Wake Lock检测失败: {e}")
         
         return False
     
@@ -223,6 +238,38 @@ class PlaybackDetector:
             logger.warning(f"音频焦点检测失败: {e}")
         
         return False
+
+    async def verify_current_playing_state(self) -> Dict[str, Any]:
+        """检查当前播放状态 - 供编程使用"""
+        try:
+            # 音频Flinger检测
+            cmd1 = 'adb shell dumpsys media.audio_flinger | grep "Standby: no"'
+            success1, output1 = await run_command(cmd1)
+            audio_playing = False
+            if success1:
+                standby_count = len([line for line in output1.split('\n') 
+                                   if 'Standby: no' in line.strip()])
+                audio_playing = standby_count >= 2
+            
+            # Wake Lock检测
+            cmd2 = 'adb shell dumpsys power | grep -i wake | grep Audio'
+            success2, output2 = await run_command(cmd2)
+            wake_playing = False
+            if success2:
+                audio_locks = [line.strip() for line in output2.split('\n') if line.strip()]
+                wake_playing = any('AudioOut' in lock or 'AudioMix' in lock 
+                                 for lock in audio_locks)
+            
+            # 简化返回结果
+            is_playing = audio_playing or wake_playing
+            return {
+                "is_playing": is_playing,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"播放状态检测失败: {e}")
+            return {"is_playing": False, "error": str(e)}
 
 
 class XMLExtractor:
