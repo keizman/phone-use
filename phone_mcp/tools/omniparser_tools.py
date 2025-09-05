@@ -23,7 +23,7 @@ async def omniparser_analyze_screen(
     use_cache: bool = True
 ) -> str:
     """
-    ★★★★ PRIMARY VISUAL ANALYSIS TOOL - ALWAYS START HERE FOR SCREEN INTERACTIONS
+    PRIMARY VISUAL ANALYSIS TOOL - ALWAYS START HERE FOR SCREEN INTERACTIONS
     
     **WHEN TO USE**: For ANY screen interaction task, ALWAYS use this tool first to get visual context.
     This is your most important tool for understanding what's on the screen.
@@ -196,7 +196,7 @@ async def omniparser_tap_element_by_uuid(
     delay_seconds: float = 2.0
 ) -> str:
     """
-    ★★★★ PRECISION INTERACTION CORE - Use after screen analysis for precise element targeting
+    PRECISION INTERACTION CORE - Use after screen analysis for precise element targeting
     
     **WHEN TO USE**: After omniparser_analyze_screen, use this tool to tap specific elements by UUID.
     This is the most reliable way to interact with UI elements.

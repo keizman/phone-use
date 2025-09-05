@@ -22,7 +22,7 @@ Need to interact with screen elements?
 
 ## 🔥 Priority Tool Classification
 
-### ★★★★ CORE PROFESSIONAL TOOLS - Always Use First
+### CORE PROFESSIONAL TOOLS - Always Use First
 These tools leverage advanced computer vision and AI for precise interactions:
 
 1. **`omniparser_analyze_screen`** - PRIMARY VISUAL ANALYSIS

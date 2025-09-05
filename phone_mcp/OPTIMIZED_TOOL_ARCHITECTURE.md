@@ -103,7 +103,7 @@ This document outlines the optimized 12-tool architecture designed to reduce LLM
 - **Fallback systems**: Multiple interaction methods available
 
 ### 3. Enhanced Prompts
-- **Priority markers**: ★★★★ to ★ clearly indicate tool importance
+- **Priority markers**: to ★ clearly indicate tool importance
 - **Usage guidance**: "When to use" sections for each tool
 - **Decision trees**: Clear selection logic for LLMs
 - **Capability descriptions**: Detailed functionality explanations
@@ -131,7 +131,7 @@ This document outlines the optimized 12-tool architecture designed to reduce LLM
 ## 🔄 Implementation Strategy
 
 ### Phase 1: Enhanced Prompts (Completed)
-- Added priority markers (★★★★ to ★)
+- Added priority markers (to ★)
 - Enhanced docstrings with usage guidance
 - Clear "when to use" instructions
 - Capability boundary definitions
@@ -151,7 +151,7 @@ This document outlines the optimized 12-tool architecture designed to reduce LLM
 ## 🎯 Success Metrics
 
 ### Tool Selection Metrics
-- **Primary tool usage**: >80% of interactions use ★★★★ tools first
+- **Primary tool usage**: >80% of interactions use tools first
 - **Proper escalation**: Complex tasks use get_task_guidance
 - **Fallback effectiveness**: <20% require coordinate-based fallback
 - **Error rate**: <5% tool selection errors

@@ -2,6 +2,15 @@
 ![Downloads](https://pepy.tech/badge/phone-mcp)
 
 🌟 A powerful MCP plugin that lets you control your Android phone with ease through ADB commands.
+The phone-use MCP is a sophisticated Android automation platform with:
+
+Core Components:
+- Visual Recognition Engine: Omniparser with YOLO + PaddleOCR for precise UI element detection
+- 30+ MCP Tools: Comprehensive device control via ADB commands
+- AI Task Guidance: Intelligent workflow orchestration with bias correction
+- Unified Interface: Multiple interaction methods (UUID-based, coordinate-based, XML fallback)
+
+Key Purpose: Enable external LLMs to control Android devices through visual recognition rather than brittle coordinate-based automation.
 
 ## Example
 - Based on today's weather by browser, automatically select and play netease music, no confirmation needed

@@ -28,10 +28,10 @@ server = Server("phone_mcp")
 async def list_tools() -> list[Tool]:
     """List all available phone MCP tools"""
     tools = [
-        # ★★★★★ HIGHEST PRIORITY - Unified UI Tools
+        # ★HIGHEST PRIORITY - Unified UI Tools
         Tool(
             name="dump_ui",
-            description="★★★★★ INTELLIGENT SCREEN ANALYSIS - Analyze current screen with automatic method selection (Omniparser visual + XML fallback)",
+            description="★INTELLIGENT SCREEN ANALYSIS - Analyze current screen with automatic method selection (Omniparser visual + XML fallback)",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -43,7 +43,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="find_element_by_text",
-            description="★★★★★ SMART TEXT SEARCH - Find UI elements by text content with intelligent matching",
+            description="★SMART TEXT SEARCH - Find UI elements by text content with intelligent matching",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -55,7 +55,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="find_element_by_id",
-            description="★★★★ RESOURCE ID SEARCH - Find UI elements by resource ID",
+            description="RESOURCE ID SEARCH - Find UI elements by resource ID",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -66,7 +66,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="tap_element",
-            description="★★★★★ INTELLIGENT ELEMENT TAP - Tap UI elements with support for UUID, coordinates, and bias correction",
+            description="★INTELLIGENT ELEMENT TAP - Tap UI elements with support for UUID, coordinates, and bias correction",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -79,10 +79,10 @@ async def list_tools() -> list[Tool]:
             }
         ),
         
-        # ★★★★ CORE PROFESSIONAL TOOLS
+        # CORE PROFESSIONAL TOOLS
         Tool(
             name="omniparser_analyze_screen",
-            description="★★★★ PRIMARY VISUAL ANALYSIS - Advanced computer vision screen analysis",
+            description="PRIMARY VISUAL ANALYSIS - Advanced computer vision screen analysis",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -94,7 +94,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="omniparser_tap_element_by_uuid",
-            description="★★★★ PRECISION INTERACTION - Tap elements using Omniparser UUID",
+            description="PRECISION INTERACTION - Tap elements using Omniparser UUID",
             inputSchema={
                 "type": "object",
                 "properties": {

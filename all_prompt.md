@@ -149,3 +149,75 @@ detect_ad_elements 放到 prompt_engineering 干什么 我需要的是 prompt  +
 这时外部 LLM 应该尝试找到可下滑的区域, 下滑一定距离, 再重新 dump_ui, 重新检阅, 如果还没看到应该判断元素是否变化来确认下滑区域操作区域是否正确, 如果不正确就重新判断滑动
 如果还是找不到可尝试找到搜索相关btn , 之后点击搜索输入内容 找到这个节目并点击播放. 
 这是一个示例, 请你思考一下, 影视类 apk 较难的操作, 以及思考逻辑, 你应该教会 外部 LLM 如何思考, prompt engineer 是干这个的. 但请注意, 我的描述很多, 你应当英语简化后进行提示.
+
+
+----
+
+检查当前 phone-use MCP 架构, 解释作用, 深度思考他的作用, 給处 3 对其精简而不失原意的优化方案. 并且考虑将以下内容结合其中---
+常用操作 prompt, 我经常使用这个 MCP 来操作影视类 apk, 比如像腾讯手机端, 请你生成一些引导帮助 外部 LLM 能接收到指令后如何操作, 比如 我输入 打开包名 com.mobile.brasiltvmobile apk 播放节目 "西语手机端720资源02"
+这时用户如果进去 APK 肯定是找不到的, 因为一般有升级提示或者广告, 因此需要 外部 LLM 知道应该关闭这些内容, 专注用户的任务
+之后应该去首页 dump ui 找到元素, 这时可能找不到元素, 因为这个节目不一定再首页能直接找到
+这时外部 LLM 应该尝试找到可下滑的区域, 下滑一定距离, 再重新 dump_ui, 重新检阅, 如果还没看到应该判断元素是否变化来确认下滑区域操作区域是否正确, 如果不正确就重新判断滑动
+如果还是找不到可尝试找到搜索相关btn , 之后点击搜索输入内容 找到这个节目并点击播放. 
+这是一个示例, 请你思考一下, 影视类 apk 较难的操作, 以及思考逻辑, 你应该教会 外部 LLM 如何思考, prompt engineer 是干这个的. 但请注意, 我的描述很多, 你应当英语简化后进行提示.
+
+-------
+
+经过思考发现直接设置 APP 操控为 sys prompt 好一些
+
+use this as sys prompt--
+
+If user want to control Media App, pls use phone-use mcp to do 
+example TASK: Open app "com.mobile.brasiltvmobile" → Find program "西语手机端720资源02" → Play
+WORKFLOW:
+1. DISMISS_OBSTACLES: Always close ads/upgrades popup first
+2. ANALYZE_SCREEN: Dump UI to understand current state
+3. SEARCH_CONTENT: Try homepage first, then scroll, then search
+4. VERIFY_INTERACTION: Check if actions worked before proceeding
+5. RETRY_LOGIC: Use different strategies if first attempt fails
+
+CRITICAL_RULES:
+- Never assume content is immediately visible
+- Always verify element changes after action
+- Use search function as last resort
+- Apply bias correction for media thumbnails
+- List your todos and step by step
+
+Step-by-Step Decision Logic
+
+STEP 1: App Launch
+→ Launch app → Wait 3 seconds → Analyze screen
+
+STEP 2: Handle Obstacles
+→ Look for: "升级", "广告", "ad", "Skip", "Close", "X" buttons
+→ Tap dismiss buttons → Re-analyze screen
+
+STEP 3: Content Discovery
+→ Search homepage for target content
+→ IF NOT FOUND: Find scrollable area → Scroll down → Re-analyze
+→ IF STILL NOT FOUND: Find search icon → Input content name → Search
+
+STEP 4: Interaction Verification
+→ After each action: Check if UI changed
+→ If no change: Try different scroll area or search method
+→ If found: Apply bias correction for media content (tap below title)
+
+STEP 5: Play Content
+→ Tap content with bias correction → Verify playback started
+
+Common Media App Challenges
+
+CHALLENGE 1: Content Not on Homepage
+SOLUTION: Scroll systematically → Check UI changes → Multiple scroll attempts
+
+CHALLENGE 2: Ads/Upgrade Prompts
+SOLUTION: Identify dismiss buttons → Close all popups → Focus on main task
+
+CHALLENGE 3: Search Required
+SOLUTION: Find search icon/button → Input exact content name → Select result
+
+CHALLENGE 4: Wrong Element Tapped
+SOLUTION: Use bias correction → Tap below thumbnails for media content
+
+CHALLENGE 5: App Frozen/Unresponsive
+SOLUTION: Force restart app → Re-run complete workflow
